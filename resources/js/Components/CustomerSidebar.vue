@@ -10,26 +10,20 @@ const menuItems = [
   {
     id: 'home',
     label: 'HOME',
-    href: '/dashboard',
+    href: '/home',
     icon: '/icons/home.png'
   },
   {
     id: 'schedule',
     label: 'SCHEDULE APPOINTMENT',
-    href: '/appointments/schedule',
+    href: '/schedule-appointment',
     icon: '/icons/sched.png'
   },
   {
     id: 'appointments',
-    label: 'APPOINTMENTS',
-    href: '/appointments',
+    label: 'VIEW APPOINTMENTS',
+    href: '/view-appointment',
     icon: '/icons/view_appointment.png'
-  },
-  {
-    id: 'history',
-    label: 'APPOINTMENT HISTORY',
-    href: '/appointments/history',
-    icon: '/icons/history.png'
   },
   {
     id: 'feedback',
@@ -40,7 +34,7 @@ const menuItems = [
   {
     id: 'profile',
     label: 'PROFILE',
-    href: '/profile',
+    href: '/invoices',
     icon: '/icons/profile.png'
   }
 ]
