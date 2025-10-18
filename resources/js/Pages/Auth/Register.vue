@@ -3,23 +3,23 @@ import { ref } from 'vue'
 import AuthBackgroundLayout from "@/Layouts/AuthBackroundLayout.vue"
 import InputLabel from '@/Components/InputLabel.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
-import { Link } from '@inertiajs/vue3'
+import { Link, useForm } from '@inertiajs/vue3'
 
-const form = ref({
-  firstName: '',
-  lastName: '',
-  email: '',
-  contactNumber: '',
+const form = useForm({
   username: '',
+  first_name: '',
+  last_name: '',
+  email: '',
+  contact_no: '',
   password: '',
-  confirmPassword: ''
+  password_confirmation: '',
 })
 
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 
 const handleRegister = () => {
-  console.log('Registering:', form.value)
+  form.post(route('register'))
 }
 </script>
 
@@ -34,18 +34,22 @@ const handleRegister = () => {
       </h2>
 
       <form @submit.prevent="handleRegister" class="space-y-4">
+
         <!-- First Name -->
         <div>
           <InputLabel for="firstName" />
           <input
             id="firstName"
-            v-model="form.firstName"
+            v-model="form.first_name"
             type="text"
             placeholder="First Name"
             class="w-full px-5 py-3.5 rounded-xl border-0 bg-white/90 
                    text-gray-800 placeholder-gray-500 focus:ring-2 
                    focus:ring-teal-500 focus:outline-none transition-all shadow-sm"
           />
+          <p v-if="form.errors.first_name" class="text-red-600 text-sm mt-1">
+            {{ form.errors.first_name }}
+          </p>
         </div>
 
         <!-- Last Name -->
@@ -53,13 +57,16 @@ const handleRegister = () => {
           <InputLabel for="lastName" />
           <input
             id="lastName"
-            v-model="form.lastName"
+            v-model="form.last_name"
             type="text"
             placeholder="Last Name"
             class="w-full px-5 py-3.5 rounded-xl border-0 bg-white/90 
                    text-gray-800 placeholder-gray-500 focus:ring-2 
                    focus:ring-teal-500 focus:outline-none transition-all shadow-sm"
           />
+          <p v-if="form.errors.last_name" class="text-red-600 text-sm mt-1">
+            {{ form.errors.last_name }}
+          </p>
         </div>
 
         <!-- Email -->
@@ -74,6 +81,9 @@ const handleRegister = () => {
                    text-gray-800 placeholder-gray-500 focus:ring-2 
                    focus:ring-teal-500 focus:outline-none transition-all shadow-sm"
           />
+          <p v-if="form.errors.email" class="text-red-600 text-sm mt-1">
+            {{ form.errors.email }}
+          </p>
         </div>
 
         <!-- Contact Number -->
@@ -81,13 +91,16 @@ const handleRegister = () => {
           <InputLabel for="contactNumber" />
           <input
             id="contactNumber"
-            v-model="form.contactNumber"
+            v-model="form.contact_no"
             type="text"
             placeholder="Contact Number"
             class="w-full px-5 py-3.5 rounded-xl border-0 bg-white/90 
                    text-gray-800 placeholder-gray-500 focus:ring-2 
                    focus:ring-teal-500 focus:outline-none transition-all shadow-sm"
           />
+          <p v-if="form.errors.contact_no" class="text-red-600 text-sm mt-1">
+            {{ form.errors.contact_no }}
+          </p>
         </div>
 
         <!-- Username -->
@@ -102,6 +115,9 @@ const handleRegister = () => {
                    text-gray-800 placeholder-gray-500 focus:ring-2 
                    focus:ring-teal-500 focus:outline-none transition-all shadow-sm"
           />
+          <p v-if="form.errors.username" class="text-red-600 text-sm mt-1">
+            {{ form.errors.username }}
+          </p>
         </div>
 
         <!-- Password -->
@@ -123,6 +139,9 @@ const handleRegister = () => {
           >
             <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
           </button>
+          <p v-if="form.errors.password" class="text-red-600 text-sm mt-1">
+            {{ form.errors.password }}
+          </p>
         </div>
 
         <!-- Confirm Password -->
@@ -130,7 +149,7 @@ const handleRegister = () => {
           <InputLabel for="confirmPassword" />
           <input
             id="confirmPassword"
-            v-model="form.confirmPassword"
+            v-model="form.password_confirmation"
             :type="showConfirmPassword ? 'text' : 'password'"
             placeholder="Confirm Password"
             class="w-full px-5 py-3.5 pr-12 rounded-xl border-0 bg-white/90 
@@ -167,3 +186,14 @@ const handleRegister = () => {
     </div>
   </AuthBackgroundLayout>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

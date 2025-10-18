@@ -1,5 +1,5 @@
 <script setup>
-import GuestLayout from '@/Layouts/GuestLayout.vue';
+import AuthBackgroundLayout from "@/Layouts/AuthBackroundLayout.vue"
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -32,70 +32,84 @@ const submit = () => {
 </script>
 
 <template>
-    <GuestLayout>
+    <AuthBackgroundLayout title="Welcome to District Smiles Dental Center">
         <Head title="Reset Password" />
 
-        <form @submit.prevent="submit">
-            <div>
-                <InputLabel for="email" value="Email" />
+        <div
+            class="backdrop-blur-md bg-light border-2 border-white rounded-2xl shadow-2xl 
+                   p-8 sm:p-10 w-full max-w-md mx-auto text-center"
+        >
+            <!-- Header -->
+            <h2 class="text-xl sm:text-2xl font-semibold mb-4 text-gray-900 drop-shadow-sm">
+                Reset Password
+            </h2>
 
-                <TextInput
-                    id="email"
-                    type="email"
-                    class="mt-1 block w-full"
-                    v-model="form.email"
-                    required
-                    autofocus
-                    autocomplete="username"
-                />
+            <!-- Form -->
+            <form @submit.prevent="submit" class="space-y-5">
+                <div>
+                    <InputLabel for="email" />
 
-                <InputError class="mt-2" :message="form.errors.email" />
-            </div>
+                    <TextInput
+                        id="email"
+                        type="email"
+                        placeholder="Email"
+                        v-model="form.email"
+                        required
+                        autofocus
+                        autocomplete="username"
+                        class="w-full px-5 py-3.5 rounded-xl border-0 bg-white/90 
+                               text-gray-800 placeholder-gray-500 focus:ring-2 
+                               focus:ring-teal-500 focus:outline-none transition-all shadow-sm"
+                    />
 
-            <div class="mt-4">
-                <InputLabel for="password" value="Password" />
+                    <InputError class="mt-2 text-red-500 text-sm" :message="form.errors.email" />
+                </div>
 
-                <TextInput
-                    id="password"
-                    type="password"
-                    class="mt-1 block w-full"
-                    v-model="form.password"
-                    required
-                    autocomplete="new-password"
-                />
+                <div>
+                    <InputLabel for="password" />
 
-                <InputError class="mt-2" :message="form.errors.password" />
-            </div>
+                    <TextInput
+                        id="password"
+                        type="password"
+                        placeholder="Password"
+                        v-model="form.password"
+                        required
+                        autocomplete="new-password"
+                        class="w-full px-5 py-3.5 rounded-xl border-0 bg-white/90 
+                               text-gray-800 placeholder-gray-500 focus:ring-2 
+                               focus:ring-teal-500 focus:outline-none transition-all shadow-sm"
+                    />
 
-            <div class="mt-4">
-                <InputLabel
-                    for="password_confirmation"
-                    value="Confirm Password"
-                />
+                    <InputError class="mt-2 text-red-500 text-sm" :message="form.errors.password" />
+                </div>
 
-                <TextInput
-                    id="password_confirmation"
-                    type="password"
-                    class="mt-1 block w-full"
-                    v-model="form.password_confirmation"
-                    required
-                    autocomplete="new-password"
-                />
+                <div>
+                    <InputLabel for="password_confirmation" />
 
-                <InputError
-                    class="mt-2"
-                    :message="form.errors.password_confirmation"
-                />
-            </div>
+                    <TextInput
+                        id="password_confirmation"
+                        type="password"
+                        placeholder="Confirm Password"
+                        v-model="form.password_confirmation"
+                        required
+                        autocomplete="new-password"
+                        class="w-full px-5 py-3.5 rounded-xl border-0 bg-white/90 
+                               text-gray-800 placeholder-gray-500 focus:ring-2 
+                               focus:ring-teal-500 focus:outline-none transition-all shadow-sm"
+                    />
 
-            <div class="mt-4 flex items-center justify-end">
+                    <InputError class="mt-2 text-red-500 text-sm" :message="form.errors.password_confirmation" />
+                </div>
+
                 <PrimaryButton
-                    :class="{ 'opacity-25': form.processing }"
+                    type="submit"
                     :disabled="form.processing"
+                    :class="{ 'opacity-25': form.processing }"
+                    class="w-1/2 bg-white font-semibold rounded-full shadow-md hover:shadow-lg uppercase"
                 >
                     Reset Password
                 </PrimaryButton>
-            </div>
-        </form>
-    </GuestLayout>
+            </form>
+        </div>
+    </AuthBackgroundLayout>
 </template>

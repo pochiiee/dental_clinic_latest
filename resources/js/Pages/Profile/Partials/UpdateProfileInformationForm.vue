@@ -1,112 +1,123 @@
 <script setup>
-import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
-import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { ref } from 'vue'
+import EditModal from '@/Components/EditModal.vue'
+import { usePage } from '@inertiajs/vue3'
 
-defineProps({
-    mustVerifyEmail: {
-        type: Boolean,
-    },
-    status: {
-        type: String,
-    },
-});
+const user = usePage().props.auth.user
 
-const user = usePage().props.auth.user;
+const showModal = ref(false)
+const modalTitle = ref('')
+const modalFields = ref([])
+const modalRoute = ref('profile.update')
 
-const form = useForm({
-    name: user.name,
-    email: user.email,
-});
+// Open modal when clicking ✎
+const openModal = (fieldType) => {
+  if (fieldType === 'name') {
+    modalTitle.value = 'Update Name'
+    modalFields.value = [
+      { label: 'First Name', name: 'first_name', value: user.first_name },
+      { label: 'Last Name', name: 'last_name', value: user.last_name },
+    ]
+  } else if (fieldType === 'email') {
+    modalTitle.value = 'Update Email'
+    modalFields.value = [
+      { label: 'Email', name: 'email', value: user.email },
+    ]
+  } else if (fieldType === 'contact') {
+    modalTitle.value = 'Update Contact Number'
+    modalFields.value = [
+      { label: 'Contact Number', name: 'contact_no', value: user.contact_no },
+    ]
+  }
+  showModal.value = true
+}
 </script>
 
 <template>
-    <section>
-        <header>
-            <h2 class="text-lg font-medium text-gray-900">
-                Profile Information
-            </h2>
+  <section class="max-w-2xl w-full pb-10 px-5">
+    <!-- Title -->
+    <h2 class="text-2xl font-semibold mb-8 text-left tracking-wide">
+      Personal Information
+    </h2>
 
-            <p class="mt-1 text-sm text-gray-600">
-                Update your account's profile information and email address.
-            </p>
-        </header>
+    <form class="space-y-6">
+      <!-- Name -->
+      <div class="flex items-center justify-between">
+        <label class="w-1/4 font-medium text-lg">Name</label>
+        <div class="relative flex-1">
+          <input
+            type="text"
+            :value="`${user.first_name} ${user.last_name}`"
+            disabled
+            class="w-full border-2 border-black rounded-xl py-3 px-4 pr-10 bg-gray-50 cursor-default"
+          />
+          <button
+            type="button"
+            @click="openModal('name')"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-700 hover:text-cyan-800 text-xl"
+            title="Edit Name"
+          >
+            ✎
+          </button>
+        </div>
+      </div>
 
-        <form
-            @submit.prevent="form.patch(route('profile.update'))"
-            class="mt-6 space-y-6"
-        >
-            <div>
-                <InputLabel for="name" value="Name" />
+      <!-- Email -->
+      <div class="flex items-center justify-between">
+        <label class="w-1/4 font-medium text-lg">Email</label>
+        <div class="relative flex-1">
+          <input
+            type="email"
+            :value="user.email"
+            disabled
+            class="w-full border-2 border-black rounded-xl py-3 px-4 pr-10 bg-gray-50 text-gray-800 cursor-default"
+          />
+          <button
+            type="button"
+            @click="openModal('email')"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-700 hover:text-cyan-800 text-xl"
+            title="Edit Email"
+          >
+            ✎
+          </button>
+        </div>
+      </div>
 
-                <TextInput
-                    id="name"
-                    type="text"
-                    class="mt-1 block w-full"
-                    v-model="form.name"
-                    required
-                    autofocus
-                    autocomplete="name"
-                />
+      <!-- Contact Number -->
+      <div class="flex items-center justify-between">
+        <label class="w-1/4 font-medium text-lg">Contact Number</label>
+        <div class="relative flex-1">
+          <input
+            type="text"
+            :value="user.contact_no"
+            disabled
+            class="w-full border-2 border-black rounded-xl py-3 px-4 pr-10 bg-gray-50 text-gray-800 cursor-default"
+          />
+          <button
+            type="button"
+            @click="openModal('contact')"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-700 hover:text-cyan-800 text-xl"
+            title="Edit Contact Number"
+          >
+            ✎
+          </button>
+        </div>
+      </div>
+    </form>
 
-                <InputError class="mt-2" :message="form.errors.name" />
-            </div>
-
-            <div>
-                <InputLabel for="email" value="Email" />
-
-                <TextInput
-                    id="email"
-                    type="email"
-                    class="mt-1 block w-full"
-                    v-model="form.email"
-                    required
-                    autocomplete="username"
-                />
-
-                <InputError class="mt-2" :message="form.errors.email" />
-            </div>
-
-            <div v-if="mustVerifyEmail && user.email_verified_at === null">
-                <p class="mt-2 text-sm text-gray-800">
-                    Your email address is unverified.
-                    <Link
-                        :href="route('verification.send')"
-                        method="post"
-                        as="button"
-                        class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    >
-                        Click here to re-send the verification email.
-                    </Link>
-                </p>
-
-                <div
-                    v-show="status === 'verification-link-sent'"
-                    class="mt-2 text-sm font-medium text-green-600"
-                >
-                    A new verification link has been sent to your email address.
-                </div>
-            </div>
-
-            <div class="flex items-center gap-4">
-                <PrimaryButton :disabled="form.processing">Save</PrimaryButton>
-
-                <Transition
-                    enter-active-class="transition ease-in-out"
-                    enter-from-class="opacity-0"
-                    leave-active-class="transition ease-in-out"
-                    leave-to-class="opacity-0"
-                >
-                    <p
-                        v-if="form.recentlySuccessful"
-                        class="text-sm text-gray-600"
-                    >
-                        Saved.
-                    </p>
-                </Transition>
-            </div>
-        </form>
-    </section>
+    <!-- Modal -->
+    <EditModal
+      :show="showModal"
+      :title="modalTitle"
+      :fields="modalFields"
+      :route-name="modalRoute"
+      @close="showModal = false"
+    />
+  </section>
 </template>
+
+<style scoped>
+input:disabled {
+  opacity: 1;
+}
+</style>

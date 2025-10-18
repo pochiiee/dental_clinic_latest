@@ -34,7 +34,7 @@ const menuItems = [
   {
     id: 'profile',
     label: 'PROFILE',
-    href: '/invoices',
+    href: '/profile',
     icon: '/icons/profile.png'
   }
 ]

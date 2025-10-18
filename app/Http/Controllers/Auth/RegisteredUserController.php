@@ -31,21 +31,35 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'username' => ['required', 'string', 'max:255', 'unique:' . User::class],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:' . User::class],
+            'contact_no' => ['required', 'string', 'size:11', 'regex:/^[0-9]+$/', 'unique:' . User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ], [
+            'username.unique' => 'This username is already taken.',
+            'email.unique' => 'This email is already registered.',
+            'contact_no.unique' => 'This contact number is already registered.',
+            'contact_no.size' => 'Contact number must be exactly 11 digits.',
+            'contact_no.regex' => 'Contact number must contain digits only.',
         ]);
 
         $user = User::create([
-            'name' => $request->name,
+            'username' => $request->username,
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
             'email' => $request->email,
+            'contact_no' => $request->contact_no,
             'password' => Hash::make($request->password),
+            'role' => 'user',
         ]);
 
         event(new Registered($user));
 
-        Auth::login($user);
-
-        return redirect(route('dashboard', absolute: false));
+        return redirect()->route('login')->with('success', 'Account created successfully!');
+        
+        return back()->with('error', 'Account already exists.');
     }
+
 }

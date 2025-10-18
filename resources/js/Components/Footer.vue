@@ -11,7 +11,7 @@
       </p>
       <div class="flex items-center mt-4 space-x-3">
         <!-- Email Icon -->
-          <img :src="'/images/envelope.svg'" alt="Email" class="w-5 h-5">
+          <img :src="'/icons/mail.svg'" alt="Email" class="w-5 h-5">
         <a href="mailto:districtsmilesdentalcenter@gmail.com" class="text-sm">
           districtsmilesdentalcenter@gmail.com
         </a>

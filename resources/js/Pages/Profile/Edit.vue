@@ -1,56 +1,112 @@
 <script setup>
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import CustomerLayout from "@/Layouts/CustomerLayout.vue";
 import DeleteUserForm from './Partials/DeleteUserForm.vue';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
 import { Head } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 defineProps({
-    mustVerifyEmail: {
-        type: Boolean,
-    },
-    status: {
-        type: String,
-    },
+    mustVerifyEmail: Boolean,
+    status: String,
 });
+
+const activeTab = ref('personal');
 </script>
 
 <template>
     <Head title="Profile" />
 
-    <AuthenticatedLayout>
-        <template #header>
-            <h2
-                class="text-xl font-semibold leading-tight text-gray-800"
-            >
-                Profile
-            </h2>
-        </template>
-
+    <CustomerLayout>
         <div class="py-12">
-            <div class="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
-                    <UpdateProfileInformationForm
-                        :must-verify-email="mustVerifyEmail"
-                        :status="status"
-                        class="max-w-xl"
-                    />
-                </div>
+            <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+                <div class="bg-gray-50 shadow-xl rounded-3xl p-12 flex flex-col">
+                    <!-- Header -->
+                    <h2 class="text-4xl font-extrabold text-cyan-800 tracking-wide uppercase text-left mb-10">
+                        PROFILE
+                    </h2>
 
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
-                    <UpdatePasswordForm class="max-w-xl" />
-                </div>
+                    <div class="flex justify-center gap-16">
+                        <!-- Left Panel - Fixed Navigation -->
+                        <div class="w-64 flex-shrink-0 sticky top-24 self-start">
+                            <div class="bg-light rounded-xl shadow-md overflow-hidden w-full">
+                                <!-- Personal Information -->
+                                <button
+                                    @click="activeTab = 'personal'"
+                                    :class="[
+                                        'relative w-full text-center px-6 py-5 font-semibold text-sm transition-all duration-300',
+                                        activeTab === 'personal'
+                                            ? 'text-gray-900 shadow-inner'
+                                            : 'text-gray-700 hover:bg-[#cfe8e8]'
+                                    ]"
+                                >
+                                    <span
+                                        v-if="activeTab === 'personal'"
+                                        class="absolute left-0 top-2 h-3/4 w-1 bg-cyan-800 rounded-r-md"
+                                    ></span>
+                                    Personal Information
+                                </button>
 
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
-                    <DeleteUserForm class="max-w-xl" />
+                                <!-- Change Password -->
+                                <button
+                                    @click="activeTab = 'password'"
+                                    :class="[
+                                        'relative w-full text-center px-6 py-5 font-semibold text-sm transition-all duration-300',
+                                        activeTab === 'password'
+                                            ? 'text-gray-900 shadow-inner'
+                                            : 'text-gray-700 hover:bg-[#cfe8e8]'
+                                    ]"
+                                >
+                                    <span
+                                        v-if="activeTab === 'password'"
+                                        class="absolute left-0 top-2 h-3/4 w-1 bg-cyan-800 rounded-r-md"
+                                    ></span>
+                                    Change Password
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Right Panel - Content -->
+                        <div class="flex-1 flex justify-center">
+                            <!-- Personal Information Tab -->
+                            <transition name="fade" mode="out-in">
+                                <div
+                                    v-if="activeTab === 'personal'"
+                                    key="personal"
+                                    class="w-full max-w-2xl transition-opacity"
+                                >
+                                    <UpdateProfileInformationForm
+                                        :must-verify-email="mustVerifyEmail"
+                                        :status="status"
+                                        class="w-full"
+                                    />
+                                </div>
+                            </transition>
+
+                            <!-- Change Password Tab -->
+                            <transition name="fade" mode="out-in">
+                                <div
+                                    v-if="activeTab === 'password'"
+                                    key="password"
+                                    class="w-full max-w-xl transition-opacity"
+                                >
+                                    <UpdatePasswordForm class="w-full" />
+                                </div>
+                            </transition>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </AuthenticatedLayout>
+    </CustomerLayout>
 </template>
+
+<style scoped>
+/* Fade transition for smooth content switching */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+</style>

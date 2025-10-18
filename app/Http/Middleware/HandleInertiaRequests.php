@@ -31,18 +31,25 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+
+            // ✅ Share authenticated user
             'auth' => [
                 'user' => $request->user(),
+            ],
+
+            // ✅ Share flash messages globally for all Inertia pages
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
             ],
         ];
     }
 
-   public function title(\Illuminate\Http\Request $request): string|\Closure|null
+    /**
+     * Define how the page title is generated.
+     */
+    public function title(Request $request): string|\Closure|null
     {
-        // Return only the page title, without APP_NAME
         return fn ($title) => $title ?: '';
     }
-
-
-
 }

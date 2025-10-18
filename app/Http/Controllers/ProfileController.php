@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,19 +28,36 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
-    {
-        $request->user()->fill($request->validated());
+public function update(ProfileUpdateRequest $request): RedirectResponse
+{
+    Log::info('Profile update called', [
+        'user' => $request->user(),
+        'data' => $request->all(),
+    ]);
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
-        }
+    $user = $request->user();
 
-        $request->user()->save();
-
-        return Redirect::route('profile.edit');
+    if (!$user) {
+        Log::error('No authenticated user found during profile update.');
+        abort(401, 'Not authenticated');
     }
 
+    $data = array_filter($request->only([
+        'first_name',
+        'last_name',
+        'email',
+        'contact_no',
+    ]), fn($value) => !is_null($value) && $value !== '');
+
+    $user->fill($data);
+    $user->save();
+
+    Log::info('User after save', ['user' => $user]);
+
+    return Redirect::route('profile.edit')->with('status', 'profile-updated');
+}
+
+    
     /**
      * Delete the user's account.
      */
