@@ -8,12 +8,11 @@ import PaymentModal from '@/Pages/Payment/PaymentModal.vue';
 import Modal from '@/Components/Modal.vue';
 
 const page = usePage();
-const appointmentId = ref(null);
 
 const user = computed(() => page.props.user ?? {});
 const services = computed(() => page.props.services ?? []);
 
-// --- form data ---
+// form data 
 const form = ref({
   firstName: user.value.first_name || '',
   lastName: user.value.last_name || '',
@@ -22,17 +21,18 @@ const form = ref({
   service: '',
   serviceId: '',
   date: '',
-  dateTime: '', 
-  timeLabel: '', 
-  scheduleId: '' 
+  dateTime: '',     
+  timeLabel: '',   
+  scheduleId: ''
 });
+
 
 const showSlotPicker = ref(false);
 const showModal = ref(false);
 const modalMessage = ref('');
 const showPaymentModal = ref(false);
 
-// Update service selection to include serviceId
+// update service selection to include serviceId
 const updateServiceSelection = (serviceName) => {
   form.value.service = serviceName;
   const selectedService = services.value.find(
@@ -41,13 +41,13 @@ const updateServiceSelection = (serviceName) => {
   form.value.serviceId = selectedService ? selectedService.service_id : '';
 };
 
-// --- open message modal ---
+// message modal
 const openModal = (message) => {
   modalMessage.value = message;
   showModal.value = true;
 };
 
-// --- open slot picker ---
+// slot picker 
 const chooseSlots = () => {
   if (!form.value.service) {
     openModal('Please select a dental service first.');
@@ -56,87 +56,38 @@ const chooseSlots = () => {
   showSlotPicker.value = true;
 };
 
-// Handle datetime selection from modal - FIXED VERSION
 const handleDateTimeSelected = (data) => {
   console.log('DateTime Selected Data:', data);
-  
-  // Make sure we're setting string values, not objects
-  form.value.date = typeof data === 'object' ? data.date : '';
-  form.value.dateTime = typeof data === 'object' ? data.time : '';
-  form.value.timeLabel = typeof data === 'object' ? data.timeLabel : '';
-  form.value.scheduleId = typeof data === 'object' ? data.scheduleId : '';
-  
+
+  form.value.date = data.date || '';
+  form.value.dateTime = data.time || '';       
+  form.value.timeLabel = data.timeLabel || ''; 
+  form.value.scheduleId = data.scheduleId || '';
+
   console.log('Form after update:', {
     date: form.value.date,
-    dateTime: form.value.dateTime,
-    timeLabel: form.value.timeLabel,
+    time: form.value.dateTime,
     scheduleId: form.value.scheduleId
   });
 };
 
-// Individual update handlers for v-model
+
+// update handlers for v-model 
 const updateSelectedDate = (date) => {
   form.value.date = date;
-};
-
-const updateSelectedTime = (time) => {
-  form.value.dateTime = time;
-};
-
-const updateSelectedTimeLabel = (timeLabel) => {
-  form.value.timeLabel = timeLabel;
 };
 
 const updateSelectedScheduleId = (scheduleId) => {
   form.value.scheduleId = scheduleId;
 };
 
-// --- open payment modal ---
+// payment modal
 const openPaymentModal = () => {
   if (!validateForm()) return;
   showPaymentModal.value = true;
 };
 
-// --- submit appointment without payment ---
-const submitAppointment = () => {
-  if (!validateForm()) return;
-
-  const scheduleDatetime = `${form.value.date} ${form.value.dateTime}`;
-  
-  const appointmentForm = useForm({
-    service_id: form.value.serviceId,
-    schedule_datetime: scheduleDatetime,
-    schedule_id: form.value.scheduleId,
-  });
-
-  appointmentForm.post(route('customer.appointment.store'), {
-    onSuccess: () => {
-      openModal('Appointment scheduled successfully!');
-      setTimeout(() => {
-        showModal.value = false;
-        router.visit(route('customer.view'));
-      }, 2000);
-    },
-    onError: (errors) => {
-      console.error('Appointment errors:', errors);
-      let errorMessage = 'An error occurred while scheduling the appointment.';
-      
-      if (errors.error) {
-        errorMessage = errors.error;
-      } else if (typeof errors === 'string') {
-        errorMessage = errors;
-      } else if (errors.message) {
-        errorMessage = errors.message;
-      } else if (Object.keys(errors).length > 0) {
-        errorMessage = Object.values(errors)[0];
-      }
-      
-      openModal(errorMessage);
-    }
-  });
-};
-
-// Form validation
+// form validation
 const validateForm = () => {
   console.log('Validating form:', form.value);
   
@@ -145,12 +96,11 @@ const validateForm = () => {
     openModal('Please select a dental service.');
     return false;
   }
-  if (!form.value.date || !form.value.dateTime) {
-    console.log('Validation failed: Date or time missing', {
-      date: form.value.date,
-      time: form.value.dateTime
+  if (!form.value.date) {
+    console.log('Validation failed: Date missing', {
+      date: form.value.date
     });
-    openModal('Please choose an available date and time slot.');
+    openModal('Please choose an available date.');
     return false;
   }
   if (!form.value.scheduleId) {
@@ -165,7 +115,7 @@ const validateForm = () => {
   return true;
 };
 
-// ✅ handle PayMongo modal events
+// handle PayMongo modal events
 const handlePaymentSuccess = (paymentData) => {
   showPaymentModal.value = false;
   openModal('Payment successful! Your appointment has been confirmed.');
@@ -229,8 +179,7 @@ const handlePaymentCancelled = () => {
               <select
                 v-model="form.service"
                 @change="updateServiceSelection(form.service)"
-                class="w-full px-4 py-3 border-2 border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-dark focus:border-transparent bg-white cursor-pointer text-gray-700 text-base appearance-none transition-all duration-200"
-              >
+                class="w-full px-4 py-3 border-2 border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-dark focus:border-transparent bg-white cursor-pointer text-gray-700 text-base appearance-none transition-all duration-200">
                 <option disabled value="">Select</option>
                 <option
                   v-for="service in services"
@@ -248,37 +197,27 @@ const handlePaymentCancelled = () => {
             <h2 class="text-lg sm:text-xl font-bold text-dark mb-4">Date and Time</h2>
             <PrimaryButton
               @click="chooseSlots"
-              class="bg-neutral hover:bg-dark text-sm px-6 sm:px-8 py-2 rounded-full transition-all duration-300 shadow-md"
-            >
+              class="bg-neutral hover:bg-dark text-sm px-6 sm:px-8 py-2 rounded-full transition-all duration-300 shadow-md">
               Choose Available Slots
             </PrimaryButton>
 
             <!-- Show date and time -->
-            <div v-if="form.date && form.timeLabel" class="mt-4 text-base text-gray-700">
-              <span class="font-semibold">Selected:</span>
-              <span class="ml-2">{{ form.date }} - {{ form.timeLabel }}</span>
-            </div>
+      <div v-if="form.date && form.timeLabel" class="mt-4 text-base text-gray-700">
+        <span class="font-semibold">Selected:</span>
+        <span class="ml-2">{{ form.date }} - {{ form.timeLabel }}</span>
+      </div>
+
           </section>
 
           <!-- Payment Button-->
-          <div class="px-2 sm:px-4 md:px-8">
+          <div class="flex justify-center sm:justify-end pt-4 sm:pt-6">
             <PrimaryButton
               @click="openPaymentModal"
-              class="bg-neutral hover:bg-dark text-sm px-8 sm:px-14 py-2 rounded-full transition-all duration-300 shadow-md"
-            >
-              Add Payment
+              class="bg-neutral hover:bg-dark text-sm px-8 sm:px-14 py-2 rounded-full transition-all duration-300 shadow-md">
+              Proceed to Payment
             </PrimaryButton>
           </div>
 
-          <!-- Submit -->
-          <div class="flex justify-center sm:justify-end pt-4 sm:pt-6">
-            <PrimaryButton
-              @click="submitAppointment"
-              class="bg-dark hover:bg-light text-white text-sm font-semibold px-8 py-2 rounded-full transition-all duration-300 shadow-md uppercase"
-            >
-              Submit
-            </PrimaryButton>
-          </div>
         </div>
       </div>
     </div>
@@ -295,18 +234,15 @@ const handlePaymentCancelled = () => {
   </Modal>
 
   <!-- Date & Time Picker -->
-  <DateTimeModal
-    v-model="showSlotPicker"
-    :selected-date="form.date"
-    :selected-time="form.dateTime"
-    :selected-time-label="form.timeLabel"
-    :selected-schedule-id="form.scheduleId"
-    @update:selectedDate="updateSelectedDate"
-    @update:selectedTime="updateSelectedTime"
-    @update:selectedTimeLabel="updateSelectedTimeLabel"
-    @update:selectedScheduleId="updateSelectedScheduleId"
-    @datetime-selected="handleDateTimeSelected"
-  />
+    <DateTimeModal
+      :modelValue="showSlotPicker"
+      :selectedDate="form.date"
+      :selectedScheduleId="form.scheduleId"
+      @update:modelValue="showSlotPicker = $event"
+      @update:selectedDate="updateSelectedDate"
+      @update:selectedScheduleId="updateSelectedScheduleId"
+      @datetime-selected="handleDateTimeSelected"
+    />  
 
   <!-- Payment Modal -->
 <PaymentModal

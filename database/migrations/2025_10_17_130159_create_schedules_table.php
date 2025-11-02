@@ -14,7 +14,8 @@ return new class extends Migration
         Schema::create('schedules', function (Blueprint $table) {
             $table->id('schedule_id');
             $table->time('start_time');
-            $table->time('end_time');
+            $table->time('end_time');   
+            $table->integer('max_capacity')->default(1);
             $table->timestamps();
         });
     }

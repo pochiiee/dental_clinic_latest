@@ -19,8 +19,29 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = $request->user();
+        
+        // Check if user is admin and redirect to admin profile
+        if ($user->role === 'admin') {
+            return Inertia::render('Admin/Profile/Edit', [
+                'mustVerifyEmail' => $user instanceof MustVerifyEmail,
+                'status' => session('status'),
+                'user' => $user,
+            ]);
+        }
+        
+        // Check if user is staff and redirect to staff profile
+        if ($user->role === 'staff') {
+            return Inertia::render('Staff/Profile/Edit', [
+                'mustVerifyEmail' => $user instanceof MustVerifyEmail,
+                'status' => session('status'),
+                'user' => $user,
+            ]);
+        }
+        
+        // Regular customer profile
         return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
         ]);
     }
@@ -30,7 +51,6 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-
         $user = $request->user();
 
         if (!$user) {
@@ -47,6 +67,15 @@ class ProfileController extends Controller
 
         $user->fill($data);
         $user->save();
+
+        // Redirect based on role
+        if ($user->role === 'admin') {
+            return Redirect::route('admin.profile.edit')->with('status', 'profile-updated');
+        }
+        
+        if ($user->role === 'staff') {
+            return Redirect::route('staff.profile.edit')->with('status', 'profile-updated');
+        }
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }

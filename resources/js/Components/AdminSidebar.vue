@@ -24,10 +24,22 @@ const menuItems = [
     href: '/admin/patients',
     icon: 'patients'
   },
+    {
+    id: 'payments',
+    label: 'PAYMENTS',
+    href: '/admin/payments',
+    icon: 'payments'
+  },
+  {
+    id: 'feedback',
+    label: 'FEEDBACK',
+    href: '/admin/feedback',
+    icon: 'feedback_admin'
+  },
   {
     id: 'staff',
     label: 'MANAGE STAFF ACCOUNT',
-    href: '/admin/staff',
+    href: '/admin/manageStaffAccount',
     icon: 'manage_staff_acc'
   },
   {
@@ -55,19 +67,19 @@ const toggleSidebar = () => {
   <!-- Sidebar -->
   <aside
     :class="[
-      'h-screen sticky top-0 left-0 bg-gradient-to-b from-cyan-100 to-cyan-50 flex flex-col shadow-xl border-r border-cyan-200 transition-all duration-300 ease-in-out overflow-hidden',
+      'h-screen sticky top-0 left-0 bg-light/50 flex flex-col  border-r transition-all duration-300 ease-in-out overflow-hidden',
       isExpanded ? 'w-64' : 'w-20'
     ]"
   >
     <!-- Logo Section -->
-    <div class="flex items-center justify-center p-6 border-b border-cyan-200 flex-shrink-0">
+    <div class="flex items-center justify-center p-6 flex-shrink-0">
       <div class="flex items-center gap-3 overflow-hidden">
         <div class="flex items-center justify-center flex-shrink-0">
           <img 
             v-if="isExpanded"
             src="/icons/logo.png" 
             alt="District Smiles Dental Center" 
-            class="h-16 lg:h-20 my-4 object-contain"
+            class="h-13 lg:h-16 my-4 object-contain"
           >
           <img 
             v-else
@@ -86,10 +98,10 @@ const toggleSidebar = () => {
         :key="item.id"
         :href="item.href"
         :class="[
-          'w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors relative group',
+          'w-full flex items-center gap-4 px-4 py-3 rounded-full transition-colors relative group',
           isActive(item.href)
-            ? 'bg-cyan-300 text-cyan-900 font-semibold'
-            : 'text-cyan-900 hover:bg-cyan-200'
+            ? 'bg-neutral font-semibold text-white'
+            : 'text-black hover:bg-neutral hover:text-white'
         ]"
       >
         <img
@@ -123,7 +135,7 @@ const toggleSidebar = () => {
       <button
         @click="handleLogout"
         :class="[
-          'w-full flex items-center gap-4 px-4 py-3 rounded-lg text-cyan-900 hover:bg-cyan-200 transition-colors relative group'
+          'w-full flex items-center gap-4 px-4 py-3 rounded-lg text-black hover:bg-neutral transition-colors relative group'
         ]"
       >
         <img
@@ -143,7 +155,7 @@ const toggleSidebar = () => {
         </Transition>
         <div
           v-if="!isExpanded"
-          class="absolute left-16 bg-cyan-900 text-white px-2 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
+          class="absolute left-16 bg-cyan-900 text-black px-2 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
         >
           LOGOUT
         </div>
@@ -154,7 +166,7 @@ const toggleSidebar = () => {
     <div class="border-t border-cyan-200 p-3 flex-shrink-0">
       <button
         @click="toggleSidebar"
-        class="w-full flex items-center justify-center gap-4 px-4 py-3 rounded-lg text-cyan-900 hover:bg-cyan-200 transition-colors"
+        class="w-full flex items-center justify-center gap-4 px-4 py-3 rounded-lg text-black hover:bg-neutral transition-colors"
       >
       <span v-if="isExpanded" class="flex items-center gap-2">
           <img 

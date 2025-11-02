@@ -17,4 +17,15 @@ class Service extends Model
         'service_name',
         'description',
     ];
+
+        public function tools()
+    {
+        return $this->belongsToMany(Tool::class, 'service_tools', 'service_id', 'tool_id');
+    }
+
+        public function appointments()
+    {
+        return $this->hasMany(Appointment::class);
+    }
+
 }

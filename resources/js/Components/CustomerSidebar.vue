@@ -22,7 +22,7 @@ const menuItems = [
   {
     id: 'appointments',
     label: 'VIEW APPOINTMENTS',
-    href: '/view-appointment',
+    href: '/customer/appointments',
     icon: '/icons/view_appointment.png'
   },
   {

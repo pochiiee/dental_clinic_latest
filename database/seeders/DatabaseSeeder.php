@@ -17,7 +17,11 @@ class DatabaseSeeder extends Seeder
         $this->call(AdminUserSeeder::class);
         //create services
         $this->call(ServiceSeeder::class);
-        //create schedules
+        //create schedule
         $this->call(ScheduleSeeder::class);
+        //create tools
+        $this->call(ToolSeeder::class);
+        //create service with tools
+        $this->call(ServiceToolSeeder::class);
     }
 }

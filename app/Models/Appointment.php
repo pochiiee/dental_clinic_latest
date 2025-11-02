@@ -17,12 +17,12 @@ class Appointment extends Model
         'patient_id',
         'service_id',
         'schedule_id',
-        'schedule_datetime',
+        'appointment_date',
         'status',
     ];
 
     protected $casts = [
-        'schedule_datetime' => 'datetime',
+        'appointment_date' => 'date',
     ];
 
     /**

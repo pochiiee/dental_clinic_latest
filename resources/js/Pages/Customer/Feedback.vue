@@ -1,44 +1,79 @@
 <script setup>
-import { ref } from 'vue';
-import { Head } from "@inertiajs/vue3";
-import CustomerLayout from '@/Layouts/CustomerLayout.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
+import { ref } from 'vue'
+import axios from 'axios'
+import { Head } from "@inertiajs/vue3"
+import CustomerLayout from '@/Layouts/CustomerLayout.vue'
+import PrimaryButton from '@/Components/PrimaryButton.vue'
+import { useToast } from 'vue-toastification' // ✅ assuming you use Vue Toastification
+
+const toast = useToast()
 
 const form = ref({
     name: '',
     feedback: '',
     image: null
-});
+})
 
-const imagePreview = ref(null);
+const imagePreview = ref(null)
+const isSubmitting = ref(false)
 
+// Handle image upload
 const handleImageUpload = (event) => {
-    const file = event.target.files[0];
+    const file = event.target.files[0]
     if (file) {
-        form.value.image = file;
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            imagePreview.value = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-};
+        form.value.image = file
 
-const triggerFileInput = () => {
-    document.getElementById('imageUpload').click();
-};
+        const reader = new FileReader()
+        reader.onload = (e) => {
+            imagePreview.value = e.target.result
+        }
+        reader.readAsDataURL(file)
+    }
+}
+
+const triggerFileInput = () => document.getElementById('imageUpload').click()
 
 const removeImage = () => {
-    form.value.image = null;
-    imagePreview.value = null;
-    document.getElementById('imageUpload').value = '';
-};
+    form.value.image = null
+    imagePreview.value = null
+    document.getElementById('imageUpload').value = ''
+}
 
-const submit = () => {
-    console.log('Submitting feedback:', form.value);
-    alert('Feedback submitted successfully!');
-};
+// ✅ Submit feedback to backend with toast
+const submit = async () => {
+    if (!form.value.feedback.trim()) {
+        toast.error('Please write some feedback before submitting.', { timeout: 3000 })
+        return
+    }
+
+    isSubmitting.value = true
+
+    try {
+        const formData = new FormData()
+        formData.append('message', form.value.feedback)
+        if (form.value.image) formData.append('image', form.value.image)
+        if (form.value.name) formData.append('name', form.value.name)
+
+        const res = await axios.post('/feedback', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        })
+
+        if (res.data.success) {
+            toast.success('Thank you! Your feedback has been submitted.', { timeout: 3000 })
+            // Reset form
+            form.value.feedback = ''
+            form.value.image = null
+            form.value.name = ''
+            imagePreview.value = null
+        } else {
+            toast.error(res.data.message || 'Something went wrong.', { timeout: 3000 })
+        }
+    } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to submit feedback.', { timeout: 3000 })
+    } finally {
+        isSubmitting.value = false
+    }
+}
 </script>
 
 <template>
@@ -121,10 +156,12 @@ const submit = () => {
                     <!-- Submit Button -->
                     <div class="flex justify-center sm:justify-end pt-4 sm:pt-6">
                         <PrimaryButton
+                            :disabled="isSubmitting"
                             @click="submit"
-                            class="bg-dark hover:bg-light text-white text-sm font-semibold px-8 py-2 rounded-full transition-all duration-300 shadow-md uppercase"
+                            class="bg-dark hover:bg-light text-white text-sm font-semibold px-8 py-2 rounded-full transition-all duration-300 shadow-md uppercase disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
-                            Submit
+                            <span v-if="!isSubmitting">Submit</span>
+                            <span v-else>Submitting...</span>
                         </PrimaryButton>
                     </div>
                 </div>

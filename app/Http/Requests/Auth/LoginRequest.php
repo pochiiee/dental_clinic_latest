@@ -97,13 +97,4 @@ class LoginRequest extends FormRequest
         return Str::transliterate(Str::lower($this->string('identifier')).'|'.$this->ip());
     }
 
-    public function store(LoginRequest $request)
-    {
-        $request->authenticate();
-
-        $request->session()->regenerate();
-
-        return redirect()->intended('/home');
-    }
-
 }

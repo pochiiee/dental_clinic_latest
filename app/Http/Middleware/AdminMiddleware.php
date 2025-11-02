@@ -16,13 +16,17 @@ class AdminMiddleware
      * @param  \Closure  $next
      * @return \Symfony\Component\HttpFoundation\Response|\Illuminate\Http\RedirectResponse
      */
- public function handle(Request $request, Closure $next)
+     public function handle(Request $request, Closure $next)
     {
-        $user = Auth::user();
+        if (!Auth::check()) {
+            return redirect()->route('login')->withErrors([
+                'email' => 'Please log in to access the admin area.',
+            ]);
+        }
 
-        if (!$user || $user->role !== 'admin') {
-            return redirect()->route('login')
-                             ->with('error', 'You must be an admin to access this page.');
+        // Check if user is admin
+        if (Auth::user()->role !== 'admin') {
+            return redirect()->route('dashboard')->with('error', 'Access denied.');
         }
 
         return $next($request);

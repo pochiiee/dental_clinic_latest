@@ -4,6 +4,8 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+
         <title inertia></title>
         <!--Tabicon-->
         <link rel="icon" type="image/x-icon" class="h-5 w-5" href="/images/tab_icon.png">
