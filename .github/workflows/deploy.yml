@@ -1,0 +1,42 @@
+name: 🚀 Deploy to Hostinger
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: ⚙️ Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        
+    - name: Install PHP dependencies
+      run: composer install --no-dev --optimize-autoloader
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install npm dependencies  
+      run: npm ci
+      
+    - name: Build assets
+      run: npm run build
+      
+    - name: Deploy to Hostinger via SFTP
+      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+      with:
+        username: '${{ secrets.HOSTINGER_USERNAME }}'  
+        server: '${{ secrets.HOSTINGER_HOST }}'        
+        ssh_private_key: '${{ secrets.HOSTINGER_PRIVATE_KEY }}'
+        local_path: './'
+        remote_path: '/domains/districtsmiles.online/public_html/'
+        sftp_only: true
