@@ -40,5 +40,5 @@ jobs:
         password: '${{ secrets.HOSTINGER_PASSWORD }}'
         port: '${{ secrets.HOSTINGER_PORT }}'
         local_path: './'
-        remote_path: '/domains/districtsmiles.online/public_html/'
+        remote_path: './public_html/'
         sftp_only: true
