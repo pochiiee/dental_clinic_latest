@@ -9,6 +9,7 @@ use App\Models\Service;
 use Illuminate\Http\Request;
 use App\Models\Appointment;
 use App\Models\Schedule;
+use App\Models\Payment; // Add this import
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,7 @@ class AppointmentController extends Controller
     {
         $userId = Auth::id();
 
-        $appointments = Appointment::with(['service', 'schedule'])
+        $appointments = Appointment::with(['service', 'schedule', 'payment']) // Add payment relationship
             ->where('patient_id', $userId)
             ->orderBy('appointment_date', 'desc')
             ->get()
@@ -42,7 +43,7 @@ class AppointmentController extends Controller
                           ' - ' . date('g:i a', strtotime($appointment->schedule->end_time))
                         : 'N/A',
                     'status' => ucfirst($appointment->status),
-                    'payment_status' => ucfirst($appointment->payment_status ?? 'Pending'), // Changed default to Pending
+                    'payment_status' => $appointment->payment ? ucfirst($appointment->payment->payment_status) : 'Pending',
                 ];
             });
 
@@ -122,15 +123,14 @@ class AppointmentController extends Controller
                 ]);
             }
 
-            // Create the appointment - Automatically save to DB even with pending payment
+            // Create the appointment - ONLY appointment data, no payment status
             $appointment = Appointment::create([
                 'patient_id' => Auth::id(),
                 'service_id' => $validated['service_id'],
                 'schedule_id' => $validated['schedule_id'],
                 'appointment_date' => $validated['appointment_date'],
                 'status' => 'pending', 
-                'payment_status' => 'pending', // Explicitly set payment status as pending
-                // REMOVED: schedule_datetime, created_by (they don't exist in DB)
+                // REMOVED payment_status since it's in payments table
             ]);
 
             Log::info('✅ APPOINTMENT CREATED SUCCESSFULLY', [
@@ -139,10 +139,9 @@ class AppointmentController extends Controller
                 'schedule_id' => $validated['schedule_id'],
                 'appointment_date' => $validated['appointment_date'],
                 'status' => 'pending',
-                'payment_status' => 'pending',
             ]);
 
-            // Set session for payment - appointment is already saved in DB
+            // Set session for payment
             session([
                 'pending_appointment' => [
                     'appointment_id' => $appointment->appointment_id,
@@ -171,7 +170,6 @@ class AppointmentController extends Controller
             // If no session, check if user has a pending appointment in database
             $pendingAppointment = Appointment::where('patient_id', Auth::id())
                 ->where('status', 'pending')
-                ->where('payment_status', 'pending')
                 ->latest()
                 ->first();
                 
@@ -208,7 +206,7 @@ class AppointmentController extends Controller
                 'display_time' => Carbon::parse($schedule->start_time)->format('g:i A') . ' - ' . Carbon::parse($schedule->end_time)->format('g:i A'),
                 'amount' => 300.00,
                 'status' => $appointment->status,
-                'payment_status' => $appointment->payment_status,
+                'payment_status' => $appointment->payment ? $appointment->payment->payment_status : 'pending',
             ]
         ]);
     }
@@ -219,7 +217,7 @@ class AppointmentController extends Controller
     public function view()
     {
         $user = Auth::user();
-        $appointments = Appointment::with(['service', 'schedule'])
+        $appointments = Appointment::with(['service', 'schedule', 'payment']) // Add payment relationship
             ->where('patient_id', $user->user_id)
             ->orderBy('appointment_date', 'desc')
             ->get()
@@ -234,7 +232,7 @@ class AppointmentController extends Controller
                     'service_name' => $appointment->service->service_name,
                     'appointment_date' => $appointment->appointment_date,
                     'status' => $appointment->status,
-                    'payment_status' => $appointment->payment_status ?? 'pending',
+                    'payment_status' => $appointment->payment ? $appointment->payment->payment_status : 'pending',
                     'formatted_date' => Carbon::parse($appointment->appointment_date)->format('F j, Y'),
                     'formatted_time' => $timeSlot,
                     'can_cancel' => $appointment->status === 'confirmed',
@@ -243,7 +241,7 @@ class AppointmentController extends Controller
                     'is_confirmed' => $appointment->status === 'confirmed',
                     'is_cancelled' => $appointment->status === 'cancelled',
                     'is_completed' => $appointment->status === 'completed',
-                    'needs_payment' => ($appointment->status === 'pending' && $appointment->payment_status === 'pending'),
+                    'needs_payment' => ($appointment->status === 'pending' && (!$appointment->payment || $appointment->payment->payment_status === 'pending')),
                 ];
             });
 
@@ -280,15 +278,19 @@ class AppointmentController extends Controller
             // Update appointment status to cancelled
             $appointment->update([
                 'status' => 'cancelled',
-                'payment_status' => 'cancelled', // Also update payment status
-                // REMOVED: cancelled_at, cancelled_by (they don't exist in DB)
             ]);
+
+            // Also update payment status if payment exists
+            if ($appointment->payment) {
+                $appointment->payment->update([
+                    'payment_status' => 'cancelled',
+                ]);
+            }
 
             Log::info('Appointment cancelled', [
                 'appointment_id' => $appointment->appointment_id,
                 'user_id' => Auth::id(),
                 'previous_status' => $appointment->getOriginal('status'),
-                'previous_payment_status' => $appointment->getOriginal('payment_status'),
             ]);
 
             return redirect()
@@ -349,7 +351,6 @@ class AppointmentController extends Controller
                 'schedule_id'        => $validated['new_schedule_id'],
                 'appointment_date'   => $validated['new_appointment_date'],
                 'status'             => $appointment->status, // Keep the same status
-                // REMOVED: schedule_datetime, rescheduled_at, rescheduled_by (they don't exist in DB)
             ]);
 
             Log::info('Appointment rescheduled successfully', [
@@ -360,7 +361,6 @@ class AppointmentController extends Controller
                 'previous_date'          => $appointment->getOriginal('appointment_date'),
                 'new_date'               => $validated['new_appointment_date'],
                 'status'                 => $appointment->status,
-                'payment_status'         => $appointment->payment_status,
             ]);
 
             return redirect()
@@ -618,7 +618,7 @@ class AppointmentController extends Controller
         ];
     }
 
-    /**
+        /**
      * Method to handle successful payment (called from PaymongoController)
      */
     public function markAsPaid($appointmentId)
@@ -633,7 +633,6 @@ class AppointmentController extends Controller
             }
 
             $appointment->update([
-                'payment_status' => 'paid',
                 'status' => 'confirmed', // Change status to confirmed upon payment
             ]);
 
@@ -650,34 +649,11 @@ class AppointmentController extends Controller
     }
 
     /**
-     * Method to handle failed payment
-     */
-    public function markPaymentFailed($appointmentId)
-    {
-        $appointment = Appointment::where('appointment_id', $appointmentId)
-            ->where('patient_id', Auth::id())
-            ->first();
-
-        if ($appointment) {
-            $appointment->update([
-                'payment_status' => 'failed',
-                // Status remains pending until payment is successful
-            ]);
-
-            Log::info('Appointment payment failed', [
-                'appointment_id' => $appointmentId,
-                'user_id' => Auth::id(),
-            ]);
-        }
-    }
-
-    /**
      * Clean up old pending appointments (can be called from a scheduled task)
      */
     public function cleanupPendingAppointments()
     {
         $expiredAppointments = Appointment::where('status', 'pending')
-            ->where('payment_status', 'pending')
             ->where('created_at', '<', now()->subHours(24)) // 24 hours old
             ->get();
 
@@ -686,8 +662,15 @@ class AppointmentController extends Controller
         foreach ($expiredAppointments as $appointment) {
             $appointment->update([
                 'status' => 'cancelled',
-                'payment_status' => 'expired',
             ]);
+            
+            // Also update payment if exists
+            if ($appointment->payment) {
+                $appointment->payment->update([
+                    'payment_status' => 'expired',
+                ]);
+            }
+            
             $cleanedCount++;
         }
 
