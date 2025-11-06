@@ -70,7 +70,7 @@ jobs:
       with:
         host: ${{ secrets.HOSTINGER_HOST }}
         username: ${{ secrets.HOSTINGER_USERNAME }}
-        key: ${{ secrets.HOSTINGER_PRIVATE_KEY }}
+        password: '\${{ secrets.HOSTINGER_PASSWORD }}'
         port: 65002
         script: |
           cd ~/domains/districtsmiles.online/public_html

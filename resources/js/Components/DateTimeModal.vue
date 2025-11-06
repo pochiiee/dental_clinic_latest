@@ -92,7 +92,6 @@ const fetchSchedules = async (date, isPrefetch = false) => {
       ? res.data.available_slots
       : []
 
-    // ✅ Cache the result
     scheduleCache.value[date] = data
 
     if (!isPrefetch) {
@@ -100,7 +99,6 @@ const fetchSchedules = async (date, isPrefetch = false) => {
       errorMessage.value = data.length ? "" : "No available time slots for this date"
     }
 
-    // ✅ Prefetch next few days (only for initial load)
     if (!isPrefetch) {
       preloadNextDays(date, 2)
     }
