@@ -120,13 +120,19 @@ class AppointmentController extends Controller
                 ]);
             }
 
+            // Get the schedule to create proper datetime
+            $schedule = Schedule::find($validated['schedule_id']);
+            $scheduleDateTime = Carbon::parse($validated['appointment_date'] . ' ' . $schedule->start_time);
+
             // Create the appointment
             $appointment = Appointment::create([
                 'patient_id' => Auth::id(),
                 'service_id' => $validated['service_id'],
                 'schedule_id' => $validated['schedule_id'],
                 'appointment_date' => $validated['appointment_date'],
+                'schedule_datetime' => $scheduleDateTime,
                 'status' => 'pending', 
+                'created_by' => Auth::id(),
             ]);
 
             // FIX: Set BOTH session variables for compatibility
@@ -200,7 +206,8 @@ class AppointmentController extends Controller
         $appointments = Appointment::with(['service', 'schedule'])
             ->where('patient_id', $user->user_id)
             ->orderBy('appointment_date', 'desc')
-            ->get() // Removed schedule_datetime ordering since column doesn't exist
+            ->orderBy('schedule_datetime', 'desc')
+            ->get()
             ->map(function ($appointment) {
                 $timeSlot = $appointment->schedule ? 
                     Carbon::parse($appointment->schedule->start_time)->format('g:i A') . ' - ' . 
@@ -211,6 +218,7 @@ class AppointmentController extends Controller
                     'appointment_id' => $appointment->appointment_id,
                     'service_name' => $appointment->service->service_name,
                     'appointment_date' => $appointment->appointment_date,
+                    'schedule_datetime' => $appointment->schedule_datetime,
                     'status' => $appointment->status,
                     'formatted_date' => Carbon::parse($appointment->appointment_date)->format('F j, Y'),
                     'formatted_time' => $timeSlot,
@@ -261,6 +269,8 @@ class AppointmentController extends Controller
             // Update appointment status to cancelled
             $appointment->update([
                 'status' => 'cancelled',
+                'cancelled_at' => now(),
+                'cancelled_by' => Auth::id(),
             ]);
 
             Log::info('Appointment cancelled and slot released', [
@@ -323,6 +333,10 @@ class AppointmentController extends Controller
 
             $newSchedule = Schedule::find($validated['new_schedule_id']);
 
+            $newScheduleDateTime = Carbon::parse(
+                $validated['new_appointment_date'] . ' ' . Carbon::parse($newSchedule->start_time)->format('H:i:s')
+            );
+
             if ($appointment->schedule) {
                 $appointment->schedule->update(['is_available' => true]);
             }
@@ -333,7 +347,10 @@ class AppointmentController extends Controller
             $appointment->update([
                 'schedule_id'        => $validated['new_schedule_id'],
                 'appointment_date'   => $validated['new_appointment_date'],
+                'schedule_datetime'  => $newScheduleDateTime,
                 'status'             => 'confirmed',
+                'rescheduled_at'     => now(),
+                'rescheduled_by'     => Auth::id(),
             ]);
 
             Log::info('Appointment rescheduled successfully', [
@@ -368,6 +385,7 @@ class AppointmentController extends Controller
             // Update status to confirmed
             $appointment->update([
                 'status' => 'confirmed',
+                'confirmed_at' => now(),
             ]);
 
             Log::info('Appointment confirmed after payment', [
@@ -625,4 +643,5 @@ class AppointmentController extends Controller
             'total' => $appointments->count()
         ];
     }
+
 }

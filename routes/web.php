@@ -64,6 +64,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/appointment/check-availability', [AppointmentController::class, 'checkAvailability'])->name('appointment.check-availability');
     Route::post('/appointments/{id}/reschedule', [AppointmentController::class, 'reschedule'])->name('customer.appointment.reschedule');
 
+
+  //=========================================== Payment Routes ===================================================
+    Route::post('/customer/payment/create', [PaymongoController::class, 'createPayment'])->name('payment.create');
+    Route::get('/payment/success', [PaymongoController::class, 'success'])->name('payment.success');
+    Route::get('/payment/cancelled', [PaymongoController::class, 'cancelled'])->name('payment.cancelled');
+
 });
  //======================================= Profile Routes =========================================================
     Route::middleware('auth')->group(function () {
@@ -107,14 +113,5 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
-
-
-//=========================================== Payment Routes ===================================================
-Route::middleware(['web'])->group(function () {
-    Route::post('/customer/payment/create', [PaymongoController::class, 'createPayment'])->name('payment.create');
-    Route::get('/payment/success', [PaymongoController::class, 'success'])->name('payment.success');
-    Route::get('/payment/cancelled', [PaymongoController::class, 'cancelled'])->name('payment.cancelled');
-});
-
 
 require __DIR__.'/auth.php';
