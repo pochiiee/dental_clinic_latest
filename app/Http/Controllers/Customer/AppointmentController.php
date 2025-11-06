@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AppointmentReminder;
 use App\Models\User;
+use App\Models\Payment; // <<< ADDED
 use Illuminate\Support\Facades\Cache;
 
 class AppointmentController extends Controller
@@ -26,11 +27,16 @@ class AppointmentController extends Controller
     {
         $userId = Auth::id();
 
-        $appointments = Appointment::with(['service', 'schedule'])
+        // Eager load 'payment' relationship to check payment status
+        $appointments = Appointment::with(['service', 'schedule', 'payment'])
             ->where('patient_id', $userId)
             ->orderBy('appointment_date', 'desc')
             ->get()
             ->map(function ($appointment) {
+                // Get payment status from the related Payment model
+                $paymentStatus = optional(optional($appointment->payment)->payment_status)->ucfirst() ?? 
+                                 (in_array($appointment->status, ['cancelled', 'completed']) ? 'N/A' : 'Pending Payment');
+
                 return [
                     'id' => $appointment->appointment_id,
                     'date_raw' => optional($appointment->appointment_date)->format('Y-m-d') ?? 'N/A',
@@ -42,12 +48,10 @@ class AppointmentController extends Controller
                           ' - ' . date('g:i a', strtotime($appointment->schedule->end_time))
                         : 'N/A',
                     'status' => ucfirst($appointment->status),
-                    // Ensure payment_status is correctly retrieved or defaulted
-                    'payment_status' => ucfirst($appointment->payment_status ?? 'Pending Payment'), 
+                    'payment_status' => $paymentStatus, // Updated to use the payment relationship
                 ];
             });
 
-        // NOTE: index() typically renders a list, the dedicated view() method below might be better for a full list
         return Inertia::render('Customer/ViewAppointment', [
             'appointments' => $appointments,
         ]);
@@ -147,8 +151,7 @@ class AppointmentController extends Controller
                 'appointment_date' => $validated['appointment_date'],
                 'schedule_datetime' => $scheduleDateTime,
                 'status' => 'pending', 
-                'payment_status' => 'pending_payment', // Set explicit initial payment status
-                // 'created_by' removed as column doesn't exist
+                // Removed 'payment_status' as it should reside in the Payment model
             ]);
             
             // Set session data for payment flow
@@ -226,9 +229,8 @@ class AppointmentController extends Controller
     {
         $user = Auth::user();
         
-        // Use $user->id instead of $user->user_id if 'id' is the primary key and relationship field
-        // Assuming $user->user_id is the correct column name for the patient_id lookup
-        $appointments = Appointment::with(['service', 'schedule'])
+        // Eager load 'payment' relationship to check payment status
+        $appointments = Appointment::with(['service', 'schedule', 'payment'])
             ->where('patient_id', $user->user_id) 
             ->orderBy('appointment_date', 'desc')
             ->orderBy('schedule_datetime', 'desc')
@@ -240,6 +242,10 @@ class AppointmentController extends Controller
                     Carbon::parse($appointment->schedule->start_time)->format('g:i A') . ' - ' . 
                     Carbon::parse($appointment->schedule->end_time)->format('g:i A') : 
                     'N/A';
+
+                // Get payment status from the related Payment model
+                $paymentStatus = optional(optional($appointment->payment)->payment_status)->ucfirst() ?? 
+                                 (in_array($appointment->status, ['cancelled', 'completed']) ? 'N/A' : 'Pending Payment');
 
                 return [
                     'appointment_id' => $appointment->appointment_id,
@@ -256,6 +262,7 @@ class AppointmentController extends Controller
                     'is_confirmed' => $appointment->status === 'confirmed',
                     'is_cancelled' => $appointment->status === 'cancelled',
                     'is_completed' => $appointment->status === 'completed',
+                    'payment_status' => $paymentStatus,
                 ];
             });
 
@@ -380,16 +387,15 @@ class AppointmentController extends Controller
 // In App\Http\Controllers\Customer\AppointmentController
 
 /**
- * Confirm appointment after successful payment
- * NOTE: The 'confirmed_at' column reference has been removed.
+ * Confirm appointment after successful payment (e.g., from a webhook or redirect success page).
  */
 public function confirmAfterPayment($appointmentId)
 {
-    // This should ONLY be called by a trusted route/service (like payment success redirect or webhook)
+    // This should ONLY be called by a trusted route/service 
     return DB::transaction(function () use ($appointmentId) {
-        $appointment = Appointment::where('appointment_id', $appointmentId)
-            // CRITICAL CHANGE: Removed the ->where('patient_id', Auth::id()) check
-            // This allows unauthenticated webhooks or redirects to proceed.
+        // Eager load the payment relationship to utilize the model's checkAndConfirmPayment() method
+        $appointment = Appointment::with('payment')
+            ->where('appointment_id', $appointmentId)
             ->first();
 
         if (!$appointment) {
@@ -398,34 +404,34 @@ public function confirmAfterPayment($appointmentId)
             throw new \Exception('Appointment not found'); 
         }
         
-        // No change needed for status checks below this line
-        if ($appointment->status === 'confirmed') {
-             Log::info('Appointment already confirmed', ['appointment_id' => $appointmentId]);
-             return true;
+        // CRITICAL CHANGE: Use the model's new method to check the payment table before confirming
+        $isConfirmed = $appointment->checkAndConfirmPayment();
+
+        if ($isConfirmed) {
+            Log::info('Appointment confirmed after payment check (using model logic)', [
+                'appointment_id' => $appointment->appointment_id,
+                'user_id' => $appointment->patient_id, 
+            ]);
+            
+            // OPTIONAL: Clear session now that payment is done
+            session()->forget('pending_appointment');
+            session()->forget('pending_payment');
+            
+            return true;
+
+        } elseif ($appointment->isConfirmed()) {
+             // Handle case where it was already confirmed (e.g., webhook retry)
+             Log::info('Appointment already confirmed after payment check.', ['appointment_id' => $appointmentId]);
+             return true; 
+        } else {
+            // The payment status is not yet completed in the payment table.
+            Log::error('Payment status check failed or appointment status not pending.', [
+                'appointment_id' => $appointmentId, 
+                'payment_status' => optional($appointment->payment)->payment_status ?? 'No Payment Record',
+            ]);
+            // Throw an exception to prevent non-paid appointments from being confirmed.
+            throw new \Exception('Payment is not yet confirmed in the payment record, cannot confirm appointment.');
         }
-
-        if ($appointment->status !== 'pending') {
-             Log::error('Attempt to confirm non-pending appointment', ['appointment_id' => $appointmentId, 'status' => $appointment->status]);
-             throw new \Exception('Appointment status is not pending.');
-        }
-
-        // Update status to confirmed and payment_status if available
-        $appointment->update([
-            'status' => 'confirmed',
-            'payment_status' => 'paid', 
-            // Removed 'confirmed_at' as column doesn't exist
-        ]);
-
-        Log::info('Appointment confirmed after payment', [
-            'appointment_id' => $appointment->appointment_id,
-            'user_id' => $appointment->patient_id, 
-        ]);
-        
-        // OPTIONAL: Clear session now that payment is done
-        session()->forget('pending_appointment');
-        session()->forget('pending_payment');
-
-        return true;
     });
 }
 
@@ -700,7 +706,7 @@ public function paymentSuccessHandler(Request $request)
     $appointmentId = $pendingAppointment['appointment_id'];
 
     try {
-        // Call the confirmation logic
+        // Call the confirmation logic. This will now ensure the payment record is complete.
         $this->confirmAfterPayment($appointmentId); 
         
         // CRITICAL CHANGE: Instead of a full redirect, return an Inertia response with success status.
@@ -711,8 +717,10 @@ public function paymentSuccessHandler(Request $request)
             // Include your standard page props here (user, services, etc., to avoid page blanking)
             'user' => Auth::user(), 
             'services' => Service::all(), 
-            // Add other props from your create() method if needed
-            // ...
+            'min_date' => Carbon::tomorrow()->format('Y-m-d'),
+            'max_date' => Carbon::now()->addMonths(3)->format('Y-m-d'),
+            'today' => Carbon::today()->format('Y-m-d'),
+            'tomorrow' => Carbon::tomorrow()->format('Y-m-d'),
         ]);
 
     } catch (\Exception $e) {

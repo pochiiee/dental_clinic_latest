@@ -27,6 +27,7 @@ class Appointment extends Model
 
     protected $casts = [
         'appointment_date' => 'date',
+        'schedule_datetime' => 'datetime', // <-- FIX: Added casting for datetime field
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
