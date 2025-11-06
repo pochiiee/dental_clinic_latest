@@ -21,6 +21,14 @@ use Illuminate\Support\Facades\Cache;
 class AppointmentController extends Controller
 {
     /**
+     * Define the maximum time (in minutes) a pending appointment has for payment.
+     * Must match the value used in the CleanupPendingAppointments command (15 mins).
+     *
+     * @var int
+     */
+    private $paymentTimeoutMinutes = 15;
+
+    /**
      * View an appointment (Kept index for backward compatibility/route resource convention)
      */
     public function index()
@@ -137,7 +145,7 @@ class AppointmentController extends Controller
             $schedule = Schedule::find($validated['schedule_id']);
             
             // Use start_time for schedule_datetime field
-            $scheduleDateTime = Carbon::parse($validated['appointment_date'] . ' ' . $schedule->start_time);
+           $scheduleDateTime = Carbon::parse($validated['appointment_date'])->setTimeFromTimeString($schedule->start_time);
             
             // Get service for price
             $service = Service::find($validated['service_id']);
@@ -205,6 +213,32 @@ class AppointmentController extends Controller
              return redirect()->route('customer.appointment.index')->with('error', 'Appointment data not found or session mismatch.'); // Changed route to index for consistency
         }
 
+        // --- CRITICAL ADDITION: CHECK FOR PAYMENT EXPIRATION ---
+        if ($appointment->status === 'pending') {
+            $createdAt = Carbon::parse($appointment->created_at);
+            $minutesElapsed = Carbon::now()->diffInMinutes($createdAt);
+            $timeoutMinutes = $this->paymentTimeoutMinutes;
+            
+            if ($minutesElapsed >= $timeoutMinutes) {
+                // 1. Mark the appointment as failed_timeout immediately
+                $appointment->update(['status' => 'failed_timeout']);
+                
+                // 2. Clear the session
+                session()->forget('pending_appointment');
+                session()->forget('pending_payment');
+
+                // 3. Redirect the user with an error
+                Log::warn('Pending appointment expired on payment page visit.', [
+                    'appointment_id' => $appointment->appointment_id,
+                    'minutes_elapsed' => $minutesElapsed
+                ]);
+
+                return redirect()->route('customer.appointment.index')
+                    ->with('error', "Your appointment booking timed out ({$timeoutMinutes} minutes for payment). Please re-schedule.");
+            }
+        }
+        // --- END CRITICAL ADDITION ---
+
         // IMPROVEMENT: Ensure the amount is correctly calculated/retrieved, not hardcoded.
         // Retrieve amount from session or service, prioritizing the session amount if it was correctly set in store()
         $pendingPayment = session('pending_payment');
@@ -245,7 +279,7 @@ class AppointmentController extends Controller
 
                 // Get payment status from the related Payment model
                 $paymentStatus = optional(optional($appointment->payment)->payment_status)->ucfirst() ?? 
-                                 (in_array($appointment->status, ['cancelled', 'completed']) ? 'N/A' : 'Pending Payment');
+                                 (in_array($appointment->status, ['cancelled', 'completed', 'failed_timeout']) ? 'N/A' : 'Pending Payment');
 
                 return [
                     'appointment_id' => $appointment->appointment_id,
@@ -343,7 +377,7 @@ class AppointmentController extends Controller
                 return back()->with('error', 'Appointment not found.');
             }
 
-            if (in_array($appointment->status, ['cancelled', 'completed', 'pending'])) { // Added pending, as only confirmed should be rescheduled
+            if (in_array($appointment->status, ['cancelled', 'completed', 'pending', 'failed_timeout'])) { // Added failed_timeout
                 return back()->with('error', 'Only confirmed appointments can be rescheduled.');
             }
 
@@ -418,14 +452,15 @@ class AppointmentController extends Controller
                 
                 return true;
 
-            } elseif ($appointment->isConfirmed()) {
+            } elseif ($appointment->status === 'confirmed') {
                  // Handle case where it was already confirmed (e.g., webhook retry)
                  Log::info('Appointment already confirmed after payment check.', ['appointment_id' => $appointmentId]);
                  return true; 
             } else {
-                // The payment status is not yet completed in the payment table.
+                // The payment status is not yet completed in the payment table, or appointment is in an unexpected state.
                 Log::error('Payment status check failed or appointment status not pending.', [
                     'appointment_id' => $appointmentId, 
+                    'appointment_status' => $appointment->status,
                     'payment_status' => optional($appointment->payment)->payment_status ?? 'No Payment Record',
                 ]);
                 // Throw an exception to prevent non-paid appointments from being confirmed.

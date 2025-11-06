@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
     {
         // Send appointment reminders daily at 8:00 AM
         $schedule->command('appointment:send-reminders')->dailyAt('08:00');
+        $schedule->command('app:cleanup-pending-appointments')->everyFiveMinutes();
     }
 
     /**
