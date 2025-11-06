@@ -7,67 +7,34 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.2'
-        extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql
-        coverage: none
-        
-    - name: Install PHP dependencies
-      run: |
-        composer install --no-dev --optimize-autoloader --no-interaction
-        
-    - name: Generate Ziggy routes
-      run: |
-        php artisan ziggy:generate
-        
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
         cache: 'npm'
         
-    - name: Install npm dependencies and build assets
+    - name: Build assets
       run: |
         npm ci
         npm run build
         
-    - name: Create deployment package
-      run: |
-        mkdir -p deploy_final
-        rsync -av \
-          --exclude='.git*' \
-          --exclude='.github' \
-          --exclude='node_modules' \
-          --exclude='tests' \
-          --exclude='*.log' \
-          --exclude='*.sqlite' \
-          --exclude='*.zip' \
-          --exclude='*.tar' \
-          --exclude='storage/*' \
-          --exclude='bootstrap/cache/*' \
-          --exclude='deploy_*' \
-          --include='storage/app' \
-          --include='storage/framework' \
-          --exclude='storage/framework/*' \
-          --include='storage/framework/cache' \
-          --include='storage/framework/views' \
-          --include='storage/framework/sessions' \
-          ./ deploy_final/
-        
-    - name: Deploy via SFTP
-      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+    - name: Deploy via Git pull
+      uses: appleboy/ssh-action@v1.0.3
       with:
+        host: ${{ secrets.HOSTINGER_HOST }}
         username: ${{ secrets.HOSTINGER_USERNAME }}
-        server: ${{ secrets.HOSTINGER_HOST }}
-        ssh_private_key: ${{ secrets.HOSTINGER_PRIVATE_KEY }}
-        port: '65002'
-        local_path: './deploy_final/' 
-        remote_path: './domains/districtsmiles.online/public_html/'
-        sftp_only: true
+        key: ${{ secrets.HOSTINGER_PRIVATE_KEY }}
+        port: 65002
+        script: |
+          cd ~/domains/districtsmiles.online/public_html
+          git pull origin master
+          composer install --no-dev --optimize-autoloader
+          php artisan migrate --force
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          php artisan cache:clear
