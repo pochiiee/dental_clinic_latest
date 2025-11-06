@@ -30,32 +30,49 @@
         </div>
       </div>
 
-      <!-- Payment Methods -->
+      <!-- Payment Information -->
       <div class="mb-6">
-        <label class="block text-sm font-medium text-gray-700 mb-3">Choose Payment Method</label>
-        
-        <div class="grid grid-cols-2 gap-4 mb-4">
-          <div class="border border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-500 transition-colors">
-            <img src="https://images.paymongo.com/gcash.png" alt="GCash" class="h-8 mx-auto mb-2">
-            <span class="text-sm font-medium">GCash</span>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 class="font-semibold text-blue-800 mb-2">How it works:</h4>
+          <ul class="text-sm text-blue-700 space-y-1">
+            <li>• Click "Proceed to Payment" below</li>
+            <li>• You'll be redirected to PayMongo's secure checkout</li>
+            <li>• Choose your preferred payment method (GCash, GrabPay, Maya, or Card)</li>
+            <li>• Complete the payment on PayMongo's platform</li>
+            <li>• You'll be redirected back to confirm your appointment</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Available Payment Methods Info -->
+      <div class="mb-6">
+        <p class="text-sm text-gray-600 text-center mb-3">Available on PayMongo checkout:</p>
+        <div class="flex justify-center space-x-6">
+          <div class="text-center">
+            <div class="w-12 h-8 bg-green-500 rounded flex items-center justify-center mx-auto mb-1">
+              <span class="text-white text-xs font-bold">GCash</span>
+            </div>
+            <span class="text-xs text-gray-500">GCash</span>
           </div>
-          <div class="border border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-500 transition-colors">
-            <img src="https://images.paymongo.com/grab_pay.png" alt="GrabPay" class="h-8 mx-auto mb-2">
-            <span class="text-sm font-medium">GrabPay</span>
+          <div class="text-center">
+            <div class="w-12 h-8 bg-green-400 rounded flex items-center justify-center mx-auto mb-1">
+              <span class="text-white text-xs font-bold">Grab</span>
+            </div>
+            <span class="text-xs text-gray-500">GrabPay</span>
           </div>
-          <div class="border border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-500 transition-colors">
-            <img src="https://images.paymongo.com/paymaya.png" alt="Maya" class="h-8 mx-auto mb-2">
-            <span class="text-sm font-medium">Maya</span>
+          <div class="text-center">
+            <div class="w-12 h-8 bg-purple-500 rounded flex items-center justify-center mx-auto mb-1">
+              <span class="text-white text-xs font-bold">Maya</span>
+            </div>
+            <span class="text-xs text-gray-500">Maya</span>
           </div>
-          <div class="border border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-500 transition-colors">
-            <img src="https://images.paymongo.com/visa_mastercard.png" alt="Credit/Debit Card" class="h-8 mx-auto mb-2">
-            <span class="text-sm font-medium">Card</span>
+          <div class="text-center">
+            <div class="w-12 h-8 bg-blue-500 rounded flex items-center justify-center mx-auto mb-1">
+              <span class="text-white text-xs font-bold">Card</span>
+            </div>
+            <span class="text-xs text-gray-500">Card</span>
           </div>
         </div>
-
-        <p class="text-xs text-gray-500 text-center">
-          You'll be redirected to a secure payment page
-        </p>
       </div>
 
       <!-- Pay Button -->
@@ -87,12 +104,11 @@
         <p class="text-red-700 text-sm">{{ error }}</p>
       </div>
 
-      <!-- Loading Overlay -->
-      <div v-if="loading" class="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center rounded-lg">
-        <div class="text-center">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p class="text-gray-700 font-semibold">Preparing your payment...</p>
-        </div>
+      <!-- Security Note -->
+      <div class="mt-4 text-center">
+        <p class="text-xs text-gray-500">
+          🔒 Secure payment powered by PayMongo
+        </p>
       </div>
     </div>
   </Modal>
@@ -100,7 +116,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import Modal from '@/Components/Modal.vue'
+import { useForm, usePage } from '@inertiajs/vue3'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -112,61 +128,45 @@ const props = defineProps({
       serviceId: '',
       date: '',
       time: '',
-      scheduleId: '',
-      customer: {
-        firstName: '',
-        lastName: '',
-        email: ''
-      }
+      scheduleId: ''
     })
   }
 })
 
 const emit = defineEmits(['update:modelValue', 'payment-success', 'payment-cancelled'])
 
-// Reactive state
 const loading = ref(false)
 const error = ref('')
 
-const createCheckoutSession = async () => {
+// Use Inertia form (handles CSRF automatically)
+const form = useForm({
+  service_id: props.appointmentData.serviceId,
+  service_name: props.appointmentData.service,
+  appointment_date: props.appointmentData.date,
+  schedule_id: props.appointmentData.scheduleId
+})
+
+const createCheckoutSession = () => {
   loading.value = true
   error.value = ''
 
-  try {
-    const response = await fetch('/customer/payment/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        service_id: props.appointmentData.serviceId,
-        service_name: props.appointmentData.service,
-        appointment_date: props.appointmentData.date,
-        schedule_id: props.appointmentData.scheduleId
-      })
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to create payment session')
-    }
-
-    if (data.checkout_url) {
+  form.post('/customer/payment/create', {
+    preserveScroll: true,
+    onSuccess: (data) => {
       // Redirect to PayMongo checkout
-      window.location.href = data.checkout_url
-    } else {
-      throw new Error('No checkout URL received')
+      if (data.props.checkout_url) {
+        window.location.href = data.props.checkout_url
+      } else {
+        error.value = 'No checkout URL received'
+      }
+    },
+    onError: (errors) => {
+      error.value = errors.error || 'Payment processing failed. Please try again.'
+    },
+    onFinish: () => {
+      loading.value = false
     }
-
-  } catch (err) {
-    console.error('Payment error:', err)
-    error.value = err.message || 'Payment processing failed. Please try again.'
-  } finally {
-    loading.value = false
-  }
+  })
 }
 
 const cancelPayment = () => {
