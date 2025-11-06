@@ -35,11 +35,10 @@ const isLoading = ref(false)
 const showConfirmModal = ref(false)
 const scheduleCache = ref({})
 
-// ✅ ADD DEBOUNCE TIMER
 let debounceTimer = null
 const DEBOUNCE_DELAY = 500 // Wait 500ms after last change
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+const API_BASE = import.meta.env.VITE_API_BASE_URL 
 
 // Get tomorrow's date for minimum selection
 const tomorrow = new Date()
