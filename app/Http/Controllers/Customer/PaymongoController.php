@@ -106,6 +106,7 @@ class PaymongoController extends Controller
             // Create PayMongo checkout session with YOUR DOMAIN
             $paymentMethods = ['gcash', 'grab_pay', 'paymaya', 'card'];
             
+            // Updated URLs to redirect to main page
             $successUrl = 'https://districtsmiles.online/payment/success?appointment_id=' . $appointment->appointment_id . '&checkout_session_id={CHECKOUT_SESSION_ID}';
             $cancelUrl = 'https://districtsmiles.online/payment/cancelled?appointment_id=' . $appointment->appointment_id;
 
@@ -192,7 +193,7 @@ class PaymongoController extends Controller
     }
     
     /**
-     * Success Payment - IMMEDIATE CONFIRMATION
+     * Success Payment - REDIRECT TO MAIN PAGE
      */
     public function success(Request $request)
     {
@@ -206,7 +207,8 @@ class PaymongoController extends Controller
         ]);
 
         if (!$appointmentId) {
-            return redirect()->route('customer.appointments') // Changed to appointments page
+            // REDIRECT TO MAIN PAGE (HOME)
+            return redirect()->route('home') // Changed to main page
                 ->with('error', 'Invalid payment session.');
         }
 
@@ -216,7 +218,8 @@ class PaymongoController extends Controller
             ->first();
 
         if (!$appointment) {
-            return redirect()->route('customer.appointments') // Changed to appointments page
+            // REDIRECT TO MAIN PAGE (HOME)
+            return redirect()->route('home') // Changed to main page
                 ->with('error', 'Appointment not found.');
         }
 
@@ -260,8 +263,8 @@ class PaymongoController extends Controller
 
             DB::commit();
 
-            // REDIRECT TO APPOINTMENTS PAGE INSTEAD OF LOGIN
-            return redirect()->route('customer.appointments')
+            // REDIRECT TO MAIN PAGE (HOME) INSTEAD OF APPOINTMENTS PAGE
+            return redirect()->route('home')
                 ->with('success', 'Payment completed successfully! Your appointment is confirmed.');
 
         } catch (\Exception $e) {
@@ -272,13 +275,14 @@ class PaymongoController extends Controller
                 'appointment_id' => $appointmentId
             ]);
 
-            return redirect()->route('customer.appointments')
+            // REDIRECT TO MAIN PAGE (HOME) ON ERROR TOO
+            return redirect()->route('home')
                 ->with('error', 'Payment confirmation failed. Please contact support.');
         }
     }
 
     /**
-     * Payment cancelled - REDIRECT TO APPOINTMENTS PAGE
+     * Payment cancelled - REDIRECT TO MAIN PAGE
      */
     public function cancelled(Request $request)
     {
@@ -292,8 +296,8 @@ class PaymongoController extends Controller
 
         session()->forget(['pending_payment', 'pending_appointment']);
 
-        // REDIRECT TO APPOINTMENTS PAGE INSTEAD OF LOGIN
-        return redirect()->route('customer.appointments')
+        // REDIRECT TO MAIN PAGE (HOME) INSTEAD OF APPOINTMENTS PAGE
+        return redirect()->route('home')
             ->with('error', 'Payment was cancelled. Please try again to book your appointment.');
     }
 
@@ -395,18 +399,10 @@ class PaymongoController extends Controller
                 'paid_at' => now(),
             ]);
 
-            return redirect()->route('customer.appointments')->with('success', 'Appointment manually confirmed for testing.');
+            // Redirect to main page after manual verification
+            return redirect()->route('home')->with('success', 'Appointment manually confirmed for testing.');
         }
 
-        return redirect()->route('customer.appointments')->with('info', 'Appointment already confirmed.');
+        return redirect()->route('home')->with('info', 'Appointment already confirmed.');
     }
-
-    /**
-     * Remove webhook method since we're not using it anymore
-     */
-    // public function webhook(Request $request) 
-    // {
-    //     // Remove webhook functionality
-    //     return response()->json(['status' => 'webhook_disabled']);
-    // }
 }
