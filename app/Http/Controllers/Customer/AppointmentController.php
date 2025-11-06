@@ -80,6 +80,8 @@ class AppointmentController extends Controller
 
    public function store(Request $request)
     {
+        Log::info('=== APPOINTMENT STORE STARTED ===', $request->all());
+
         $validated = $request->validate([
             'service_id' => 'required|exists:services,service_id',
             'schedule_id' => 'required|exists:schedules,schedule_id',
@@ -120,31 +122,25 @@ class AppointmentController extends Controller
                 ]);
             }
 
-            // Get the schedule to create proper datetime
-            $schedule = Schedule::find($validated['schedule_id']);
-            $scheduleDateTime = Carbon::parse($validated['appointment_date'] . ' ' . $schedule->start_time);
-
-            // Create the appointment
+            // Create the appointment - ONLY USE FIELDS THAT EXIST IN DATABASE
             $appointment = Appointment::create([
                 'patient_id' => Auth::id(),
                 'service_id' => $validated['service_id'],
                 'schedule_id' => $validated['schedule_id'],
                 'appointment_date' => $validated['appointment_date'],
-                'schedule_datetime' => $scheduleDateTime,
                 'status' => 'pending', 
-                'created_by' => Auth::id(),
+                // REMOVED: schedule_datetime, created_by (they don't exist in DB)
             ]);
 
-            // FIX: Set BOTH session variables for compatibility
+            Log::info('✅ APPOINTMENT CREATED SUCCESSFULLY', [
+                'appointment_id' => $appointment->appointment_id,
+                'user_id' => Auth::id(),
+                'schedule_id' => $validated['schedule_id'],
+                'appointment_date' => $validated['appointment_date'],
+            ]);
+
+            // Set session for payment
             session([
-                'pending_payment' => [
-                    'temp_appointment_id' => $appointment->appointment_id, // This is what success() looks for
-                    'service_id' => $validated['service_id'],
-                    'schedule_id' => $validated['schedule_id'],
-                    'appointment_date' => $validated['appointment_date'],
-                    'user_id' => Auth::id(),
-                    'amount' => 30000, // Add this for payment processing
-                ],
                 'pending_appointment' => [
                     'appointment_id' => $appointment->appointment_id,
                     'service_id' => $validated['service_id'],
@@ -152,14 +148,6 @@ class AppointmentController extends Controller
                     'appointment_date' => $validated['appointment_date'],
                     'user_id' => Auth::id(),
                 ]
-            ]);
-
-            Log::info('Appointment created for payment', [
-                'appointment_id' => $appointment->appointment_id,
-                'user_id' => Auth::id(),
-                'schedule_id' => $validated['schedule_id'],
-                'appointment_date' => $validated['appointment_date'],
-                'session_set' => true
             ]);
 
             return redirect()->route('customer.payment.view');
@@ -206,8 +194,7 @@ class AppointmentController extends Controller
         $appointments = Appointment::with(['service', 'schedule'])
             ->where('patient_id', $user->user_id)
             ->orderBy('appointment_date', 'desc')
-            ->orderBy('schedule_datetime', 'desc')
-            ->get()
+            ->get() // Removed schedule_datetime ordering since column doesn't exist
             ->map(function ($appointment) {
                 $timeSlot = $appointment->schedule ? 
                     Carbon::parse($appointment->schedule->start_time)->format('g:i A') . ' - ' . 
@@ -218,12 +205,11 @@ class AppointmentController extends Controller
                     'appointment_id' => $appointment->appointment_id,
                     'service_name' => $appointment->service->service_name,
                     'appointment_date' => $appointment->appointment_date,
-                    'schedule_datetime' => $appointment->schedule_datetime,
                     'status' => $appointment->status,
                     'formatted_date' => Carbon::parse($appointment->appointment_date)->format('F j, Y'),
                     'formatted_time' => $timeSlot,
-                    'can_cancel' => $appointment->status === 'confirmed', // ONLY confirmed can be cancelled
-                    'can_reschedule' => $appointment->status === 'confirmed', // ONLY confirmed can be rescheduled
+                    'can_cancel' => $appointment->status === 'confirmed',
+                    'can_reschedule' => $appointment->status === 'confirmed',
                     'is_pending' => $appointment->status === 'pending',
                     'is_confirmed' => $appointment->status === 'confirmed',
                     'is_cancelled' => $appointment->status === 'cancelled',
@@ -261,27 +247,20 @@ class AppointmentController extends Controller
                 return back()->with('error', 'Only confirmed appointments can be cancelled.');
             }
 
-            // Release the schedule slot (make it available again)
-            if ($appointment->schedule) {
-                $appointment->schedule->update(['is_available' => true]);
-            }
-
             // Update appointment status to cancelled
             $appointment->update([
                 'status' => 'cancelled',
-                'cancelled_at' => now(),
-                'cancelled_by' => Auth::id(),
+                // REMOVED: cancelled_at, cancelled_by (they don't exist in DB)
             ]);
 
-            Log::info('Appointment cancelled and slot released', [
+            Log::info('Appointment cancelled', [
                 'appointment_id' => $appointment->appointment_id,
                 'user_id' => Auth::id(),
-                'schedule_id' => $appointment->schedule_id,
             ]);
 
             return redirect()
                 ->route('customer.view')
-                ->with('success', 'Appointment cancelled successfully and time slot released.');
+                ->with('success', 'Appointment cancelled successfully.');
         });
     }
 
@@ -331,26 +310,12 @@ class AppointmentController extends Controller
                 return back()->with('error', 'The selected time slot is already booked. Please choose another time.');
             }
 
-            $newSchedule = Schedule::find($validated['new_schedule_id']);
-
-            $newScheduleDateTime = Carbon::parse(
-                $validated['new_appointment_date'] . ' ' . Carbon::parse($newSchedule->start_time)->format('H:i:s')
-            );
-
-            if ($appointment->schedule) {
-                $appointment->schedule->update(['is_available' => true]);
-            }
-
-            $newSchedule->update(['is_available' => false]);
-
             // Update appointment record
             $appointment->update([
                 'schedule_id'        => $validated['new_schedule_id'],
                 'appointment_date'   => $validated['new_appointment_date'],
-                'schedule_datetime'  => $newScheduleDateTime,
                 'status'             => 'confirmed',
-                'rescheduled_at'     => now(),
-                'rescheduled_by'     => Auth::id(),
+                // REMOVED: schedule_datetime, rescheduled_at, rescheduled_by (they don't exist in DB)
             ]);
 
             Log::info('Appointment rescheduled successfully', [
@@ -365,33 +330,6 @@ class AppointmentController extends Controller
             return redirect()
                 ->route('customer.view')
                 ->with('success', 'Appointment rescheduled successfully.');
-        });
-    }
-
-    /**
-     * Confirm appointment after successful payment
-     */
-    public function confirmAfterPayment($appointmentId)
-    {
-        DB::transaction(function () use ($appointmentId) {
-            $appointment = Appointment::where('appointment_id', $appointmentId)
-                ->where('patient_id', Auth::id())
-                ->first();
-
-            if (!$appointment) {
-                throw new \Exception('Appointment not found');
-            }
-
-            // Update status to confirmed
-            $appointment->update([
-                'status' => 'confirmed',
-                'confirmed_at' => now(),
-            ]);
-
-            Log::info('Appointment confirmed after payment', [
-                'appointment_id' => $appointment->appointment_id,
-                'user_id' => Auth::id()
-            ]);
         });
     }
 

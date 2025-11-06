@@ -191,91 +191,74 @@ class PaymongoController extends Controller
         }
     }
     
-    /**
-     * Success Payment - IMMEDIATE CONFIRMATION
-     */
-    public function success(Request $request)
-    {
-        $appointmentId = $request->query('appointment_id');
-        $checkoutSessionId = $request->query('checkout_session_id');
-        
-        Log::info('Payment success callback', [
-            'appointment_id' => $appointmentId,
-            'checkout_session_id' => $checkoutSessionId,
-            'user_id' => Auth::id()
-        ]);
+public function success(Request $request)
+{
+    Log::info('=== PAYMENT SUCCESS STARTED ===', $request->all());
+    
+    $appointmentId = $request->query('appointment_id');
+    $checkoutSessionId = $request->query('checkout_session_id');
+    
+    if (!$appointmentId) {
+        Log::error('No appointment_id in success URL');
+        return redirect()->route('customer.view')->with('error', 'Invalid payment session.');
+    }
 
-        if (!$appointmentId) {
-            return redirect()->route('customer.appointments') // Changed to appointments page
-                ->with('error', 'Invalid payment session.');
-        }
-
-        // Get appointment
+    DB::beginTransaction();
+    try {
+        // 1. Find the appointment
         $appointment = Appointment::where('appointment_id', $appointmentId)
             ->where('patient_id', Auth::id())
             ->first();
 
         if (!$appointment) {
-            return redirect()->route('customer.appointments') // Changed to appointments page
-                ->with('error', 'Appointment not found.');
+            Log::error('Appointment not found', ['appointment_id' => $appointmentId]);
+            return redirect()->route('customer.view')->with('error', 'Appointment not found.');
         }
 
-        DB::beginTransaction();
-        try {
-            // Check if already confirmed
-            if ($appointment->status === 'pending') {
-                // ✅ IMMEDIATELY CONFIRM APPOINTMENT
-                $appointment->update([
-                    'status' => 'confirmed',
-                ]);
+        Log::info('Found appointment', [
+            'appointment_id' => $appointment->appointment_id,
+            'current_status' => $appointment->status
+        ]);
 
-                // ✅ CREATE PAYMENT RECORD
-                $paymentMethod = $this->detectPaymentMethod($checkoutSessionId);
-                
-                $payment = Payment::create([
-                    'appointment_id' => $appointment->appointment_id,
-                    'amount' => 300.00,
-                    'payment_method' => $paymentMethod,
-                    'payment_status' => 'completed',
-                    'transaction_reference' => $checkoutSessionId,
-                    'paid_at' => now(),
-                ]);
+        // 2. Update appointment status to confirmed
+        if ($appointment->status === 'pending') {
+            $appointment->update(['status' => 'confirmed']);
+            Log::info('✅ Appointment status updated to confirmed');
+        }
 
-                // Send receipt email
-                try {
-                    $user = $appointment->patient;
-                    if ($user && $user->email) {
-                        Mail::to($user->email)->send(new PaymentReceiptMail($appointment, $payment));
-                        Log::info('✅ PAYMENT RECEIPT EMAIL SENT');
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Failed to send email', ['error' => $e->getMessage()]);
-                }
-
-                Log::info('✅ APPOINTMENT CONFIRMED IMMEDIATELY', [
-                    'appointment_id' => $appointmentId,
-                    'payment_id' => $payment->payment_id
-                ]);
-            }
-
-            DB::commit();
-
-            // REDIRECT TO APPOINTMENTS PAGE INSTEAD OF LOGIN
-            return redirect()->route('customer.appointments')
-                ->with('success', 'Payment completed successfully! Your appointment is confirmed.');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
+        // 3. Create payment record
+        $existingPayment = Payment::where('appointment_id', $appointmentId)->first();
+        if (!$existingPayment) {
+            $paymentMethod = $this->detectPaymentMethod($checkoutSessionId);
             
-            Log::error('Payment confirmation failed', [
-                'error' => $e->getMessage(),
-                'appointment_id' => $appointmentId
+            $payment = Payment::create([
+                'appointment_id' => $appointment->appointment_id,
+                'amount' => 300.00,
+                'payment_method' => $paymentMethod,
+                'payment_status' => 'completed',
+                'transaction_reference' => $checkoutSessionId,
+                'paid_at' => now(),
             ]);
-
-            return redirect()->route('customer.appointments')
-                ->with('error', 'Payment confirmation failed. Please contact support.');
+            Log::info('✅ Payment record created', ['payment_id' => $payment->payment_id]);
         }
+
+        DB::commit();
+        
+        Log::info('=== PAYMENT SUCCESS COMPLETED ===');
+        return redirect()->route('customer.view')
+            ->with('success', 'Payment completed! Your appointment is confirmed.');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('Payment success failed', [
+            'error' => $e->getMessage(),
+            'appointment_id' => $appointmentId
+        ]);
+        
+        return redirect()->route('customer.view')
+            ->with('error', 'Payment confirmation failed. Please contact support.');
     }
+}
 
     /**
      * Payment cancelled - REDIRECT TO APPOINTMENTS PAGE
