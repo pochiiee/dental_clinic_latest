@@ -185,7 +185,7 @@ class AppointmentController extends Controller
             return redirect()->route('customer.appointment')->with('error', 'Appointment data not found.');
         }
 
-        return Inertia::render('Customer/PaymentPage', [
+        return Inertia::render('Customer/ViewAppointment', [
             'appointment_data' => [
                 'appointment_id' => $appointment->appointment_id,
                 'service_name' => $service->service_name,

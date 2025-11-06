@@ -30,9 +30,7 @@ Route::get('/', function () {
     Route::get('/testimonials', fn() => Inertia::render('Landing/Testimonials'));
     //Payment 
     Route::post('/payment/webhook', [PaymongoController::class, 'webhook'])->name('payment.webhook');
-    Route::post('/customer/payment/create', [PaymongoController::class, 'createPayment'])->name('payment.create');
-    Route::get('/payment/success', [PaymongoController::class, 'success'])->name('payment.success');
-    Route::get('/payment/cancelled', [PaymongoController::class, 'cancelled'])->name('payment.cancelled');
+
 
    // Schedule Routes
     Route::prefix('schedules')->group(function () {
