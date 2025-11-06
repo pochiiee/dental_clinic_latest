@@ -67,7 +67,6 @@ const fetchSchedules = async (date, isPrefetch = false) => {
     return
   }
 
-  // ✅ Return cached result immediately if available
   if (scheduleCache.value[date]) {
     schedules.value = scheduleCache.value[date]
     if (!isPrefetch) isLoading.value = false
