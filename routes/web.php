@@ -29,13 +29,6 @@ Route::get('/', function () {
     Route::get('/contactUs', fn() => Inertia::render('Landing/ContactUs'));
     Route::get('/testimonials', fn() => Inertia::render('Landing/Testimonials'));
 
-    //=========================================== Payment Routes ===================================================
-    Route::post('/customer/payment/create', [PaymongoController::class, 'createPayment'])->name('payment.create');
-    Route::get('/payment/success', [PaymongoController::class, 'success'])->name('payment.success');
-    Route::get('/payment/cancelled', [PaymongoController::class, 'cancelled'])->name('payment.cancelled');
-    Route::post('/payment/webhook', [PaymongoController::class, 'webhook'])->name('payment.webhook');
-
-
    // Schedule Routes
     Route::prefix('schedules')->group(function () {
         Route::get('/', [ScheduleController::class, 'index']);
@@ -67,6 +60,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/available-slots', [AppointmentController::class, 'getAvailableSlots'])->name('customer.available-slots');
     Route::get('/appointment/check-availability', [AppointmentController::class, 'checkAvailability'])->name('appointment.check-availability');
     Route::post('/appointments/{id}/reschedule', [AppointmentController::class, 'reschedule'])->name('customer.appointment.reschedule');
+
+//=========================================== Payment Routes ===================================================
+    Route::post('/customer/payment/create', [PaymongoController::class, 'createPayment'])->name('payment.create');
+    Route::get('/payment/success', [PaymongoController::class, 'success'])->name('payment.success');
+    Route::get('/payment/cancelled', [PaymongoController::class, 'cancelled'])->name('payment.cancelled');
+    Route::post('/payment/webhook', [PaymongoController::class, 'webhook'])->name('payment.webhook');
 
 
 });
