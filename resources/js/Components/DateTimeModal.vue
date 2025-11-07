@@ -50,6 +50,67 @@ const maxDate = new Date()
 maxDate.setMonth(maxDate.getMonth() + 3)
 const maxDateStr = maxDate.toISOString().split('T')[0]
 
+// Philippine Holidays 2025-2026
+const philippineHolidays = {
+  // 2025 Regular Holidays
+  "2025-01-01": "New Year's Day",
+  "2025-04-17": "Maundy Thursday",
+  "2025-04-18": "Good Friday",
+  "2025-04-19": "Black Saturday",
+  "2025-04-20": "Easter Sunday",
+  "2025-04-09": "Araw ng Kagitingan",
+  "2025-05-01": "Labor Day",
+  "2025-06-12": "Independence Day",
+  "2025-08-21": "Ninoy Aquino Day",
+  "2025-08-25": "National Heroes Day",
+  "2025-11-01": "All Saints' Day",
+  "2025-11-30": "Bonifacio Day",
+  "2025-12-25": "Christmas Day",
+  "2025-12-30": "Rizal Day",
+  "2025-12-31": "New Year's Eve",
+  
+  // 2025 Special Non-Working Holidays
+  "2025-01-29": "Chinese New Year",
+  "2025-02-25": "EDSA Revolution Anniversary",
+  "2025-03-01": "Ramadan Start",
+  "2025-03-31": "Eid'l Fitr",
+  "2025-11-02": "All Souls' Day",
+  "2025-12-08": "Feast of the Immaculate Conception",
+  "2025-12-24": "Christmas Eve",
+  
+  // 2026 Regular Holidays
+  "2026-01-01": "New Year's Day",
+  "2026-04-02": "Maundy Thursday",
+  "2026-04-03": "Good Friday",
+  "2026-04-04": "Black Saturday",
+  "2026-04-05": "Easter Sunday",
+  "2026-04-09": "Araw ng Kagitingan",
+  "2026-05-01": "Labor Day",
+  "2026-06-12": "Independence Day",
+  "2026-08-21": "Ninoy Aquino Day",
+  "2026-08-31": "National Heroes Day",
+  "2026-11-01": "All Saints' Day",
+  "2026-11-30": "Bonifacio Day",
+  "2026-12-25": "Christmas Day",
+  "2026-12-30": "Rizal Day",
+  "2026-12-31": "New Year's Eve",
+  
+  // 2026 Special Non-Working Holidays
+  "2026-02-17": "Chinese New Year",
+  "2026-02-25": "EDSA Revolution Anniversary",
+  "2026-02-18": "Ramadan Start",
+  "2026-03-20": "Eid'l Fitr",
+  "2026-11-02": "All Souls' Day",
+  "2026-12-08": "Feast of the Immaculate Conception",
+  "2026-12-24": "Christmas Eve"
+}
+
+// Function to check if a date is a holiday
+const isHoliday = (year, month, day) => {
+  const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  return philippineHolidays[dateString] || null
+}
+
 const fetchSchedules = async (date, isPrefetch = false) => {
   if (!date) return
 
@@ -217,7 +278,7 @@ const calendarDays = computed(() => {
 })
 
 const getDateStatus = (day) => {
-  if (!day) return { isPast: false, isClosed: false, isToday: false, isFuture: false }
+  if (!day) return { isPast: false, isClosed: false, isToday: false, isFuture: false, isHoliday: false }
   
   const dateObj = new Date(currentYear.value, currentMonth.value, day)
   const today = new Date()
@@ -228,13 +289,14 @@ const getDateStatus = (day) => {
   const isFuture = dateObj > today
   const isClosed = dateObj.getDay() === 0 || dateObj.getDay() === 1 // Sunday or Monday
   const isBeyondMax = dateObj > new Date(maxDateStr)
+  const isHolidayDate = isHoliday(currentYear.value, currentMonth.value, day)
   
-  return { isPast, isClosed, isToday, isFuture, isBeyondMax }
+  return { isPast, isClosed, isToday, isFuture, isBeyondMax, isHoliday: !!isHolidayDate }
 }
 
 const selectDate = (day) => {
-  const { isPast, isClosed, isToday, isBeyondMax } = getDateStatus(day)
-  if (!day || isPast || isClosed || isToday || isBeyondMax) return
+  const { isPast, isClosed, isToday, isBeyondMax, isHoliday } = getDateStatus(day)
+  if (!day || isPast || isClosed || isToday || isBeyondMax || isHoliday) return
   
   const formatted = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   localSelectedDate.value = formatted
@@ -332,8 +394,8 @@ const cancelReschedule = () => {
 
 // Helper to check if a date is selectable
 const isDateSelectable = (day) => {
-  const { isPast, isClosed, isToday, isBeyondMax } = getDateStatus(day)
-  return !isPast && !isClosed && !isToday && !isBeyondMax
+  const { isPast, isClosed, isToday, isBeyondMax, isHoliday } = getDateStatus(day)
+  return !isPast && !isClosed && !isToday && !isBeyondMax && !isHoliday
 }
 
 const canGoNext = computed(() => {
@@ -386,16 +448,34 @@ onUnmounted(() => {
             <div
               v-for="(day, index) in calendarDays"
               :key="index"
-              class="p-2 text-center rounded cursor-pointer transition font-medium text-sm"
+              class="p-2 text-center rounded cursor-pointer transition font-medium text-sm relative"
               :class="{
                 'bg-gray-300 text-gray-500 cursor-not-allowed': !isDateSelectable(day),
-                'bg-red-400 text-white cursor-not-allowed': getDateStatus(day).isClosed,
-                'bg-gray-300 text-gray-500  cursor-not-allowed': getDateStatus(day).isToday,
+                'bg-red-400 text-white cursor-not-allowed': getDateStatus(day).isClosed || getDateStatus(day).isHoliday,
+                'bg-gray-300 text-gray-500 cursor-not-allowed': getDateStatus(day).isToday,
                 'bg-[#0E5C5C] text-white': localSelectedDate && localSelectedDate.endsWith(String(day).padStart(2, '0')) && isDateSelectable(day),
                 'hover:bg-[#0E5C5C] hover:text-white': isDateSelectable(day)
               }"
               @click="selectDate(day)">
               {{ day }}
+              <!-- Holiday indicator dot -->
+              <div v-if="getDateStatus(day).isHoliday" class="absolute top-1 right-1 w-1 h-1 bg-white rounded-full"></div>
+            </div>
+          </div>
+          
+          <!-- Calendar Legend -->
+          <div class="mt-4 text-xs flex flex-wrap gap-2 justify-center">
+            <div class="flex items-center gap-1">
+              <div class="w-3 h-3 bg-[#0E5C5C] rounded"></div>
+              <span>Selected</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <div class="w-3 h-3 bg-red-400 rounded"></div>
+              <span>Holiday/Closed</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <div class="w-3 h-3 bg-gray-300 rounded"></div>
+              <span>Unavailable</span>
             </div>
           </div>
         </div>
@@ -411,7 +491,12 @@ onUnmounted(() => {
 
           <!-- Date not selected or invalid -->
           <div v-else-if="!localSelectedDate || !isDateSelectable(localSelectedDate)" class="text-gray-400 text-sm mt-4 p-4 bg-gray-50 rounded text-center">
-            Please select a valid future date to see available time slots.
+            <div v-if="localSelectedDate && isHoliday(new Date(localSelectedDate).getFullYear(), new Date(localSelectedDate).getMonth(), new Date(localSelectedDate).getDate())" class="text-red-600 font-medium">
+              {{ isHoliday(new Date(localSelectedDate).getFullYear(), new Date(localSelectedDate).getMonth(), new Date(localSelectedDate).getDate()) }} - Clinic Closed
+            </div>
+            <div v-else>
+              Please select a valid future date to see available time slots.
+            </div>
           </div>
 
           <!-- Available Slots -->

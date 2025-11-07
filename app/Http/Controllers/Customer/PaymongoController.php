@@ -16,12 +16,10 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\PaymentReceiptMail;
 use Illuminate\Support\Arr;
 use Inertia\Inertia;
-use App\Models\User; // Ensure User model is imported for the email relationship
+use App\Models\User;
 
 class PaymongoController extends Controller
 {
-    // ... (getAvailablePaymentMethods remains the same) ...
-    
     /**
     * All Available Payments
     */
@@ -48,7 +46,6 @@ class PaymongoController extends Controller
         ]);
 
         // Fix: Convert amount properly to centavos
-        // NOTE: Ideally, the amount should come from the Service model, not hardcoded.
         $amountInPesos = 300.00;
         $amount = intval(round($amountInPesos * 100)); // 30000 centavos
 
@@ -71,42 +68,42 @@ class PaymongoController extends Controller
         try {
             // Check for existing appointment in session first
             $pendingAppointmentData = session('pending_appointment');
-            $appointmentId = $pendingAppointmentData['appointment_id'] ?? session('pending_appointment_id'); // Check both old and new session keys
+            $appointmentId = $pendingAppointmentData['appointment_id'] ?? session('pending_appointment_id');
             
             $appointment = null;
             if ($appointmentId) {
                 // Use the appointment already created by AppointmentController::store
                 $appointment = Appointment::where('appointment_id', $appointmentId)
                     ->where('patient_id', Auth::id())
-                    ->where('status', 'pending')
+                    ->where('status', 'Scheduled') // FIXED: Changed from 'pending' to 'Scheduled'
                     ->first();
             }
             
             if (!$appointment) {
-                // Fallback: check if user has any pending appointment
+                // Fallback: check if user has any scheduled appointment
                 $appointment = Appointment::where('patient_id', Auth::id())
-                    ->where('status', 'pending')
+                    ->where('status', 'Scheduled') // FIXED: Changed from 'pending' to 'Scheduled'
                     ->first();
             }
 
-            // If no pending appointment found, create one (backward compatibility / safety)
+            // If no scheduled appointment found, create one (backward compatibility / safety)
             if (!$appointment) {
-                Log::warning('No pending appointment found, creating new one');
+                Log::warning('No scheduled appointment found, creating new one');
 
-                // Check if user has existing confirmed appointment
-                $existingConfirmedAppointment = Appointment::where('patient_id', Auth::id())
-                    ->whereIn('status', ['confirmed'])
+                // Check if user has existing scheduled appointment
+                $existingScheduledAppointment = Appointment::where('patient_id', Auth::id())
+                    ->whereIn('status', ['Scheduled']) // FIXED: Changed from 'confirmed' to 'Scheduled'
                     ->first();
 
-                if ($existingConfirmedAppointment) {
+                if ($existingScheduledAppointment) {
                     DB::rollBack();
-                    return response()->json(['error' => 'You already have a confirmed appointment.'], 422);
+                    return response()->json(['error' => 'You already have a scheduled appointment.'], 422);
                 }
 
                 // Check if the slot is already booked
                 $isBooked = Appointment::where('schedule_id', $validated['schedule_id'])
                     ->whereDate('appointment_date', $validated['appointment_date'])
-                    ->whereIn('status', ['confirmed'])
+                    ->whereIn('status', ['Scheduled']) // FIXED: Changed from 'confirmed' to 'Scheduled'
                     ->exists();
 
                 if ($isBooked) {
@@ -123,8 +120,8 @@ class PaymongoController extends Controller
                     'service_id' => $validated['service_id'],
                     'schedule_id' => $validated['schedule_id'],
                     'appointment_date' => $validated['appointment_date'],
-                    'schedule_datetime' => $scheduleDateTime, // Added schedule_datetime
-                    'status' => 'pending',
+                    'schedule_datetime' => $scheduleDateTime,
+                    'status' => 'Scheduled', // FIXED: Changed from 'pending' to 'Scheduled'
                 ]);
 
                 if (!$appointment->appointment_id) {
@@ -141,14 +138,14 @@ class PaymongoController extends Controller
                     $appointment->schedule_id != $validated['schedule_id'] ||
                     $appointment->appointment_date != $validated['appointment_date']) {
                     
-                    Log::warning('Appointment data mismatch, updating existing pending appointment');
+                    Log::warning('Appointment data mismatch, updating existing scheduled appointment');
                     
                     // Update appointment with new data
                     $appointment->update([
                         'service_id' => $validated['service_id'],
                         'schedule_id' => $validated['schedule_id'],
                         'appointment_date' => $validated['appointment_date'],
-                        'schedule_datetime' => $scheduleDateTime, // Added schedule_datetime
+                        'schedule_datetime' => $scheduleDateTime,
                     ]);
                 }
             }
@@ -167,7 +164,7 @@ class PaymongoController extends Controller
                             "amount" => $amount,
                             "currency" => "PHP",
                             "quantity" => 1,
-                            "images" => ['https://districtsmiles.online/images/logo.png'] // Use absolute URL
+                            "images" => ['https://districtsmiles.online/images/logo.png']
                         ]],
                         "payment_method_types" => $paymentMethods,
                         "description" => "Service Fee of ₱300 for " . $validated['service_name'],
@@ -214,7 +211,7 @@ class PaymongoController extends Controller
             $appointment->save();
 
             // Clear old session and store new appointment ID for consistency
-            session()->forget('pending_appointment'); // Clear the old structure if it existed
+            session()->forget('pending_appointment');
             session(['pending_appointment_id' => $appointment->appointment_id]);
 
             Log::info('✅ Payment session created successfully', [
@@ -293,39 +290,39 @@ class PaymongoController extends Controller
 
         $payment = Payment::where('appointment_id', $appointmentId)->first();
         
-        // Scenario 1: Already confirmed (webhook arrived first or was already processed)
-        if ($appointment->status === 'confirmed' && $payment) {
-            Log::info('Appointment already confirmed, showing success page');
+        // Scenario 1: Already paid (webhook arrived first or was already processed)
+        if ($appointment->status === 'Scheduled' && $payment) { // FIXED: Changed from 'confirmed' to 'Scheduled'
+            Log::info('Appointment already paid, showing success page');
             
             return Inertia::render('Payment/Success', [
                 'appointment' => $appointment,
                 'payment' => $payment,
-                'message' => 'Payment completed successfully! Your appointment is confirmed.'
+                'message' => 'Payment completed successfully! Your appointment is scheduled.'
             ]);
         }
         
-        // Scenario 2: Still pending - Check if it can be confirmed immediately (API check)
-        if ($appointment->status === 'pending') {
-            Log::info('Appointment pending, checking payment status via API...');
+        // Scenario 2: Still unpaid - Check if it can be paid immediately (API check)
+        if ($appointment->status === 'Scheduled') { // FIXED: Changed from 'pending' to 'Scheduled'
+            Log::info('Appointment unpaid, checking payment status via API...');
 
             // Verify payment status directly with PayMongo API
             $isPaid = $this->verifyPaymentStatus($appointment->paymongo_session_id);
             
             if ($isPaid) {
-                Log::info('Payment verified via API, confirming appointment...');
+                Log::info('Payment verified via API, processing payment...');
                 
-                // *** CORE FIX: Confirm payment and appointment in one transaction ***
+                // Process payment and update appointment
                 $payment = DB::transaction(function () use ($appointment, $request) {
-                    $appointment->update(['status' => 'confirmed']);
+                    // Appointment status remains 'Scheduled' since payment is now integrated
                     
                     // Detect payment method from the session data pulled via API
                     $paymentMethod = $this->detectPaymentMethod($appointment->paymongo_session_id);
 
-                    // Create Payment record (or update if it exists from a previous/delayed step)
+                    // Create Payment record
                     $payment = Payment::updateOrCreate(
-                        ['appointment_id' => $appointment->appointment_id], // Unique identifier
+                        ['appointment_id' => $appointment->appointment_id],
                         [
-                            'amount' => 300.00, // Still using hardcoded amount
+                            'amount' => 300.00,
                             'payment_method' => $paymentMethod,
                             'payment_status' => 'completed',
                             'transaction_reference' => $appointment->paymongo_session_id,
@@ -347,13 +344,13 @@ class PaymongoController extends Controller
                 return Inertia::render('Payment/Success', [
                     'appointment' => $appointment->fresh(['service', 'schedule', 'patient']),
                     'payment' => $payment,
-                    'message' => 'Payment completed successfully! Your appointment is confirmed.'
+                    'message' => 'Payment completed successfully! Your appointment is scheduled.'
                 ]);
             }
         }
 
-        // Scenario 3: Not confirmed and not immediately verifiable (show processing page)
-        Log::info('Payment status is not confirmed yet, showing processing page');
+        // Scenario 3: Not paid and not immediately verifiable (show processing page)
+        Log::info('Payment status is not paid yet, showing processing page');
 
         return Inertia::render('Payment/Success', [
             'appointment' => $appointment,
@@ -381,11 +378,11 @@ class PaymongoController extends Controller
 
         $payment = Payment::where('appointment_id', $appointmentId)->first();
 
-        if ($appointment->status === 'confirmed' && $payment) {
+        if ($appointment->status === 'Scheduled' && $payment) { // FIXED: Changed from 'confirmed' to 'Scheduled'
             return Inertia::render('Payment/Success', [
                 'appointment' => $appointment,
                 'payment' => $payment,
-                'message' => 'Payment completed successfully! Your appointment is confirmed.'
+                'message' => 'Payment completed successfully! Your appointment is scheduled.'
             ]);
         }
 
@@ -398,7 +395,6 @@ class PaymongoController extends Controller
     
     /**
     * Verify payment status directly with PayMongo API
-    * Checks for a 'paid' payment object inside the session.
     */
     private function verifyPaymentStatus($checkoutSessionId)
     {
@@ -413,13 +409,11 @@ class PaymongoController extends Controller
             if ($response->successful()) {
                 $sessionData = $response->json();
                 
-                // The most reliable check: see if a 'paid' payment object exists.
                 $payments = $sessionData['data']['attributes']['payments'] ?? [];
                 if (!empty($payments)) {
-                    // Check the status of the first payment object found
                     $status = $payments[0]['attributes']['status'] ?? null;
                     Log::info('Payment status from payments array:', ['status' => $status]);
-                    return $status === 'paid'; // ONLY return true if 'paid'
+                    return $status === 'paid';
                 }
                 
                 return false; 
@@ -444,7 +438,6 @@ class PaymongoController extends Controller
     */
     public function webhook(Request $request)
     {
-        // ... (Webhook verification and initial logging remain the same) ...
         Log::info('=== PAYMONGO WEBHOOK START ===');
         
         // Log all webhook data for debugging
@@ -504,7 +497,6 @@ class PaymongoController extends Controller
             }
 
             // Get appointment - NO AUTHENTICATION CHECK FOR WEBHOOK
-            // Eager load patient model for email sending
             $appointment = Appointment::where('appointment_id', $appointmentId)->with('patient')->first(); 
             
             if (!$appointment) {
@@ -512,17 +504,17 @@ class PaymongoController extends Controller
             }
 
             // Check if already processed
-            if ($appointment->status === 'confirmed') {
-                Log::info('Appointment already confirmed', ['appointment_id' => $appointmentId]);
+            if ($appointment->status === 'Scheduled') { // FIXED: Changed from 'confirmed' to 'Scheduled'
+                Log::info('Appointment already scheduled with payment', ['appointment_id' => $appointmentId]);
                 DB::commit();
                 return response()->json(['status' => 'already_processed']);
             }
             
-            // *** CORE FIX: Use updateOrCreate for Payment to handle both new creation and updates from success URL ***
+            // Create or update payment record
             $paymentMethod = $this->detectPaymentMethodFromWebhook($webhookData);
             
             $payment = Payment::updateOrCreate(
-                ['appointment_id' => $appointment->appointment_id], // Unique identifier
+                ['appointment_id' => $appointment->appointment_id],
                 [
                     'amount' => 300.00,
                     'payment_method' => $paymentMethod,
@@ -532,15 +524,15 @@ class PaymongoController extends Controller
                 ]
             );
 
-            // ✅ CONFIRM APPOINTMENT
+            // Update appointment with payment session ID
             $appointment->update([
-                'status' => 'confirmed',
-                'paymongo_session_id' => $checkoutSessionId // Ensure session ID is captured here too
+                'paymongo_session_id' => $checkoutSessionId
+                // Status remains 'Scheduled' as appointments are now immediately scheduled
             ]);
 
-            Log::info('Appointment updated to confirmed');
+            Log::info('Payment recorded for scheduled appointment');
 
-            // Send receipt email (only if the payment was successfully processed now)
+            // Send receipt email
             try {
                 $user = $appointment->patient;
                 if ($user && $user->email) {
@@ -553,7 +545,7 @@ class PaymongoController extends Controller
 
             DB::commit();
 
-            Log::info('✅ PAYMENT CONFIRMED VIA WEBHOOK SUCCESSFULLY', [
+            Log::info('✅ PAYMENT RECORDED VIA WEBHOOK SUCCESSFULLY', [
                 'appointment_id' => $appointmentId,
                 'payment_id' => $payment->payment_id,
                 'payment_method' => $paymentMethod
@@ -617,7 +609,6 @@ class PaymongoController extends Controller
             return false;
         }
 
-        // Simple signature verification (Paymongo uses HMAC SHA256)
         $computedSignature = hash_hmac('sha256', $payload, $webhookSecret);
         
         $isValid = hash_equals($signature, $computedSignature);
@@ -669,9 +660,9 @@ class PaymongoController extends Controller
         try {
             $appointment = Appointment::find($appointmentId);
 
-            if ($appointment && in_array($appointment->status, ['pending'])) {
-                // Mark as cancelled instead of deleting
-                $appointment->status = 'cancelled';
+            if ($appointment && in_array($appointment->status, ['Scheduled'])) { // FIXED: Changed from 'pending' to 'Scheduled'
+                // Mark as cancelled for failed payment
+                $appointment->status = 'Cancelled'; // FIXED: Using correct enum value
                 $appointment->save();
 
                 Log::info('Appointment marked as cancelled after failed payment', [
@@ -699,12 +690,10 @@ class PaymongoController extends Controller
             
             $sessionData = $response->json();
 
-            // Check for payment method that was actually used (from the 'payments' array)
             $paymentMethod = null;
             if (isset($sessionData['data']['attributes']['payments'][0]['attributes']['payment_method']['attributes']['type'])) {
                 $paymentMethod = $sessionData['data']['attributes']['payments'][0]['attributes']['payment_method']['attributes']['type'];
             } 
-            // Fallback to the types requested, though less accurate for the final used method
             elseif (isset($sessionData['data']['attributes']['payment_method_types'][0])) {
                 $paymentMethod = $sessionData['data']['attributes']['payment_method_types'][0];
             }
@@ -731,17 +720,16 @@ class PaymongoController extends Controller
     {
         $appointmentId = $request->query('appointment_id');
         
-        // 🐞 FIX: Clear the pending appointment from session
+        // Clear the pending appointment from session
         session()->forget('pending_appointment_id');
 
         if ($appointmentId) {
             $this->cleanupFailedPayment($appointmentId);
         }
 
-        // Simple cancelled page - no authentication required
         return Inertia::render('Payment/Cancelled', [
             'appointmentId' => $appointmentId,
-            'message' => 'Payment was cancelled. No appointment was created or confirmed.'
+            'message' => 'Payment was cancelled. No appointment was created or scheduled.'
         ]);
     }
 }
