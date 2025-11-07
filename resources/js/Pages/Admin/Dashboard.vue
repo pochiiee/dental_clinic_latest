@@ -8,6 +8,10 @@ import { CalendarIcon, UserPlusIcon, ClockIcon } from '@heroicons/vue/24/outline
 const totalAppointments = ref(10);
 const patientsRegistered = ref(34);
 const scheduledAppointments = ref(25);
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 // Weekly dropdown
 const selectedPeriod = ref('Weekly')
 const periods = ['Daily', 'Weekly', 'Monthly', 'Yearly']
