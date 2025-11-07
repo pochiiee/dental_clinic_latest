@@ -4,16 +4,10 @@ import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { CalendarIcon, UserPlusIcon, ClockIcon } from '@heroicons/vue/24/outline'
 
 // Stats data
-<<<<<<< Updated upstream
-const totalAppointments = ref(10)
-const patientsRegistered = ref(34)
-const pendingAppointments = ref(25)
-=======
+
 const totalAppointments = ref(10);
 const patientsRegistered = ref(34);
 const scheduledAppointments = ref(25);
->>>>>>> Stashed changes
-
 // Weekly dropdown
 const selectedPeriod = ref('Weekly')
 const periods = ['Daily', 'Weekly', 'Monthly', 'Yearly']
@@ -93,18 +87,6 @@ const getBarHeight = (value) => {
 </script>
 
 <template>
-<<<<<<< Updated upstream
-  <AdminLayout>
-    <div class="min-h-screen bg-gray-100 p-8">
-      <div class="max-w-7xl mx-auto">
-        <!-- Header -->
-        <div class="mb-8 flex justify-between items-center">
-          <h1 class="text-4xl font-bold text-teal-700">HOME</h1>
-          <div class="text-right">
-            <p class="text-sm text-gray-600">Sunday</p>
-            <p class="text-lg font-semibold text-gray-800">October 12, 2025</p>
-          </div>
-=======
     <AdminLayout>
         <div class="min-h-screen bg-gray-100 p-8">
             <div class="max-w-7xl mx-auto">
