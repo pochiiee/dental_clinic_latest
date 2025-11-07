@@ -97,8 +97,8 @@ class Schedule extends Model
         $isLocked = $this->lock_until && $this->lock_until->isFuture();
 
         return $this->is_available &&
-               $this->booked_count < $this->max_patients &&
-               !$isLocked;
+            $this->booked_count < $this->max_patients &&
+            !$isLocked;
     }
 
     /**

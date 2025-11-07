@@ -33,24 +33,24 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
         $request->session()->regenerate();
 
-            $user = Auth::user();
+        $user = Auth::user();
 
-            if (!$user) {
-                return redirect()->route('login')->withErrors(['identifier' => 'Login failed.']);
-            }
-
-            // admin
-            if ($user->role === 'admin') {
-                  return redirect()->intended(route('admin.dashboard', absolute: false));
-                }
-
-            //customer
-            if ($user->role === 'customer') {
-                return redirect()->intended(route('customer.home', absolute: false));
-            }
-
-            return redirect()->intended(route('login'));
+        if (!$user) {
+            return redirect()->route('login')->withErrors(['identifier' => 'Login failed.']);
         }
+
+        // admin
+        if ($user->role === 'admin') {
+            return redirect()->intended(route('admin.dashboard', absolute: false));
+        }
+
+        //customer
+        if ($user->role === 'customer') {
+            return redirect()->intended(route('customer.home', absolute: false));
+        }
+
+        return redirect()->intended(route('login'));
+    }
 
 
     /**

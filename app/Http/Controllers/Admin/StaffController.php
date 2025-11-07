@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class StaffController extends Controller
 {
@@ -41,23 +42,34 @@ class StaffController extends Controller
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'username' => 'required|string|max:255|unique:users',
+        // Log incoming request for debugging
+        Log::info('Staff creation request received:', $request->all());
+
+        // Validate request
+        $request->validate([
+            'username' => 'required|string|max:255|unique:users,username',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
-            'contact_no' => ['required', 'regex:/^(09\d{9}|\+639\d{9})$/'],], ['contact_no.regex' => 'Please enter a valid mobile number (e.g., 09123456789 or +639123456789).',
+            'email' => 'required|email|max:255|unique:users,email',
+            'contact_no' => ['required', 'regex:/^(09\d{9}|\+639\d{9})$/'],
             'password' => 'required|string|min:8|confirmed',
+        ], [
+            'username.required' => 'Username is required.',
+            'username.unique' => 'This username is already taken.',
+            'first_name.required' => 'First name is required.',
+            'last_name.required' => 'Last name is required.',
+            'email.required' => 'Email is required.',
+            'email.email' => 'Please enter a valid email address.',
+            'email.unique' => 'This email is already registered.',
+            'contact_no.required' => 'Contact number is required.',
+            'contact_no.regex' => 'Please enter a valid mobile number (e.g., 09123456789 or +639123456789).',
+            'password.required' => 'Password is required.',
+            'password.min' => 'Password must be at least 8 characters.',
+            'password.confirmed' => 'Password confirmation does not match.',
         ]);
 
-        if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
-
         try {
-            User::create([
+            $user = User::create([
                 'username' => $request->username,
                 'first_name' => $request->first_name,
                 'last_name' => $request->last_name,
@@ -67,12 +79,28 @@ class StaffController extends Controller
                 'role' => 'staff',
             ]);
 
+            Log::info('Staff created successfully:', ['user_id' => $user->user_id]);
+
             return redirect()->route('admin.staff.index')
                 ->with('success', 'Staff member created successfully!');
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Database error creating staff:', [
+                'error' => $e->getMessage(),
+                'code' => $e->getCode()
+            ]);
+
             return redirect()->back()
-                ->with('error', 'Failed to create staff member: ' . $e->getMessage())
-                ->withInput();
+                ->withErrors(['error' => 'Database error: ' . $e->getMessage()])
+                ->withInput($request->except('password', 'password_confirmation'));
+        } catch (\Exception $e) {
+            Log::error('Error creating staff:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->withErrors(['error' => 'Failed to create staff member: ' . $e->getMessage()])
+                ->withInput($request->except('password', 'password_confirmation'));
         }
     }
 
@@ -81,35 +109,45 @@ class StaffController extends Controller
      */
     public function toggleStatus($id)
     {
-        $staff = User::where('user_id', $id)
-            ->where('role', 'staff')
-            ->firstOrFail();
+        try {
+            $staff = User::where('user_id', $id)
+                ->where('role', 'staff')
+                ->firstOrFail();
 
-        $key = 'deactivated_staff_' . $staff->user_id;
-        $isDeactivated = Cache::get($key, false);
+            $key = 'deactivated_staff_' . $staff->user_id;
+            $isDeactivated = Cache::get($key, false);
 
-        if ($isDeactivated) {
-            Cache::forget($key);
-            $status = 'activated';
-        } else {
-            Cache::put($key, true, now()->addYears(10)); // keep deactivated flag "forever"
-            $status = 'deactivated';
+            if ($isDeactivated) {
+                Cache::forget($key);
+                $status = 'activated';
+            } else {
+                Cache::put($key, true, now()->addYears(10));
+                $status = 'deactivated';
+            }
+
+            return redirect()->back()->with('success', "Staff member {$status} successfully!");
+        } catch (\Exception $e) {
+            Log::error('Error toggling staff status:', ['error' => $e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Failed to update staff status.']);
         }
-
-        return redirect()->back()->with('success', "Staff member {$status} successfully!");
     }
 
     public function getStats()
     {
-        $staff = User::where('role', 'staff')->get();
-        $totalStaff = $staff->count();
-        $active = $staff->filter(fn ($u) => !Cache::get('deactivated_staff_' . $u->user_id, false))->count();
-        $inactive = $totalStaff - $active;
+        try {
+            $staff = User::where('role', 'staff')->get();
+            $totalStaff = $staff->count();
+            $active = $staff->filter(fn($u) => !Cache::get('deactivated_staff_' . $u->user_id, false))->count();
+            $inactive = $totalStaff - $active;
 
-        return response()->json([
-            'total_staff' => $totalStaff,
-            'active_staff' => $active,
-            'inactive_staff' => $inactive,
-        ]);
+            return response()->json([
+                'total_staff' => $totalStaff,
+                'active_staff' => $active,
+                'inactive_staff' => $inactive,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error getting staff stats:', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Failed to fetch stats'], 500);
+        }
     }
 }

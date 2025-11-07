@@ -19,28 +19,26 @@ use App\Http\Controllers\Customer\FeedbackController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Landing/Welcome', [
-
-    ]);
+    return Inertia::render('Landing/Welcome', []);
 });
-    //================ Public Routes ====================================
-    Route::get('/services', fn() => Inertia::render('Landing/Services'));
-    Route::get('/faqs', fn() => Inertia::render('Landing/Faqs'));
-    Route::get('/contactUs', fn() => Inertia::render('Landing/ContactUs'));
-    Route::get('/testimonials', fn() => Inertia::render('Landing/Testimonials'));
+//================ Public Routes ====================================
+Route::get('/services', fn() => Inertia::render('Landing/Services'));
+Route::get('/faqs', fn() => Inertia::render('Landing/Faqs'));
+Route::get('/contactUs', fn() => Inertia::render('Landing/ContactUs'));
+Route::get('/testimonials', fn() => Inertia::render('Landing/Testimonials'));
 
-   // Schedule Routes
-    Route::prefix('schedules')->group(function () {
-        Route::get('/', [ScheduleController::class, 'index']);
-        Route::get('/available-dates', [ScheduleController::class, 'getAvailableDates']);
-        Route::get('/date-range', [ScheduleController::class, 'getByDateRange']);
-        Route::get('/today', [ScheduleController::class, 'getTodaySlots']);
-        Route::get('/tomorrow', [ScheduleController::class, 'getTomorrowSlots']);
-        Route::get('/date/{date}', [ScheduleController::class, 'getByDate']);
-        Route::get('/{date}/available-slots', [ScheduleController::class, 'getAvailableSlots']);
-        Route::get('/{scheduleId}/check-availability', [ScheduleController::class, 'checkAvailability']);
-        Route::post('/bulk-check', [ScheduleController::class, 'bulkCheckAvailability']);
-    });;
+// Schedule Routes
+Route::prefix('schedules')->group(function () {
+    Route::get('/', [ScheduleController::class, 'index']);
+    Route::get('/available-dates', [ScheduleController::class, 'getAvailableDates']);
+    Route::get('/date-range', [ScheduleController::class, 'getByDateRange']);
+    Route::get('/today', [ScheduleController::class, 'getTodaySlots']);
+    Route::get('/tomorrow', [ScheduleController::class, 'getTomorrowSlots']);
+    Route::get('/date/{date}', [ScheduleController::class, 'getByDate']);
+    Route::get('/{date}/available-slots', [ScheduleController::class, 'getAvailableSlots']);
+    Route::get('/{scheduleId}/check-availability', [ScheduleController::class, 'checkAvailability']);
+    Route::post('/bulk-check', [ScheduleController::class, 'bulkCheckAvailability']);
+});;
 
 //=============================== Customer Routes AUTHENTICATED =====================================================
 Route::middleware(['auth'])->group(function () {
@@ -51,7 +49,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/feedback', [FeedbackController::class, 'store'])->name('feedback.store');
     Route::get('/feedback', [FeedbackController::class, 'index'])->name('feedback.index');
 
-//=================================== Appointment Routes ============================================================
+    //=================================== Appointment Routes ============================================================
     Route::get('/customer/appointments', [AppointmentController::class, 'index'])->name('customer.view');
     Route::get('/schedule-appointment', [AppointmentController::class, 'create'])->name('customer.appointment');
     Route::post('/schedule-appointment', [AppointmentController::class, 'store'])->name('customer.appointment.store');
@@ -62,33 +60,31 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/appointment/payment', [AppointmentController::class, 'showPaymentPage'])->name('customer.payment.view');
     Route::get('/appointment/payment/success', [AppointmentController::class, 'paymentSuccessHandler'])->name('customer.payment.success');
 
-//=========================================== Payment Routes ===================================================
+    //=========================================== Payment Routes ===================================================
     Route::post('/customer/payment/create', [PaymongoController::class, 'createPayment'])->name('payment.create');
     Route::get('/payment/success', [PaymongoController::class, 'success'])->name('payment.success');
     Route::get('/payment/cancelled', [PaymongoController::class, 'cancelled'])->name('payment.cancelled');
     Route::post('/payment/webhook', [PaymongoController::class, 'webhook'])->name('payment.webhook');
-
-
 });
- //======================================= Profile Routes =========================================================
-    Route::middleware('auth')->group(function () {
-        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    });
+//======================================= Profile Routes =========================================================
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
 
-    
+
 //============================================ Admin Routes =====================================================
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/patients', [PatientController::class, 'index'])->name('patients');
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');   
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     //FEEDBACK
     Route::get('/feedback', [AdminFeedbackController::class, 'index'])->name('feedback.index');
     Route::get('/feedback/{id}', [AdminFeedbackController::class, 'show'])->name('feedback.show');
     Route::get('/feedback-stats', [AdminFeedbackController::class, 'getStats'])->name('feedback.stats');
     Route::get('/feedback-image/{filename}', [AdminFeedbackController::class, 'getImage'])->where('filename', '.*')->name('feedback.image');
-    
+
 
     //APPOINTMENT
     Route::get('/appointments', [AdminAppointmentController::class, 'index'])->name('appointments.index');
@@ -113,4 +109,4 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 });
 
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
