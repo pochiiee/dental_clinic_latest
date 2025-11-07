@@ -88,12 +88,25 @@ function deactivateStaff(staff) {
 </script>
 
 <template>
+<<<<<<< Updated upstream
   <AdminLayout>
     <div class="min-h-screen bg-light/30 p-8 font-rem">
       <!-- Header -->
       <div class="max-w-6xl mx-auto mb-8 flex justify-between items-center">
         <h1 class="text-3xl font-bold text-dark">MANAGE STAFF ACCOUNT</h1>
       </div>
+=======
+    <AdminLayout>
+        <div class="min-h-screen bg-light/30 p-8 font-rem">
+            <!-- Header -->
+            <div
+                class="max-w-6xl mx-auto mb-8 flex justify-between items-center"
+            >
+                <h1 class="text-3xl font-bold text-dark">
+                    Manage Staff Profile
+                </h1>
+            </div>
+>>>>>>> Stashed changes
 
       <!-- Tabs -->
       <div class="max-w-6xl mx-auto mb-6">

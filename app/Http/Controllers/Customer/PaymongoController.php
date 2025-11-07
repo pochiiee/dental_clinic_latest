@@ -297,7 +297,7 @@ class PaymongoController extends Controller
             return Inertia::render('Payment/Success', [
                 'appointment' => $appointment,
                 'payment' => $payment,
-                'message' => 'Payment completed successfully! Your appointment is scheduled.'
+                'message' => 'Payment paid successfully! Your appointment is scheduled.'
             ]);
         }
         
@@ -324,7 +324,7 @@ class PaymongoController extends Controller
                         [
                             'amount' => 300.00,
                             'payment_method' => $paymentMethod,
-                            'payment_status' => 'completed',
+                            'payment_status' => 'paid',
                             'transaction_reference' => $appointment->paymongo_session_id,
                             'paid_at' => now(),
                         ]
@@ -344,7 +344,7 @@ class PaymongoController extends Controller
                 return Inertia::render('Payment/Success', [
                     'appointment' => $appointment->fresh(['service', 'schedule', 'patient']),
                     'payment' => $payment,
-                    'message' => 'Payment completed successfully! Your appointment is scheduled.'
+                    'message' => 'Payment paid successfully! Your appointment is scheduled.'
                 ]);
             }
         }
@@ -382,7 +382,7 @@ class PaymongoController extends Controller
             return Inertia::render('Payment/Success', [
                 'appointment' => $appointment,
                 'payment' => $payment,
-                'message' => 'Payment completed successfully! Your appointment is scheduled.'
+                'message' => 'Payment paid successfully! Your appointment is scheduled.'
             ]);
         }
 
@@ -518,7 +518,7 @@ class PaymongoController extends Controller
                 [
                     'amount' => 300.00,
                     'payment_method' => $paymentMethod,
-                    'payment_status' => 'completed',
+                    'payment_status' => 'paid',
                     'transaction_reference' => $checkoutSessionId,
                     'paid_at' => now(),
                 ]
